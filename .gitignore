@@ -1,0 +1,10 @@
+project-dir/config
+project-dir/logs
+project-dir/plugins
+
+env
+
+__pycache__
+dist
+build
+*.egg-info
