@@ -3,9 +3,6 @@
 COMPOSE_FILE=$(dirname $0)/docker-compose.yml
 PROJECT_DIR=$(dirname $0)/../project-dir
 
-mkdir -p $PROJECT_DIR/config
-mkdir -p $PROJECT_DIR/logs
-mkdir -p $PROJECT_DIR/plugins
 
 case "$1" in
   "stop")
@@ -16,6 +13,16 @@ case "$1" in
     ;;
   "down")
     docker compose -f $COMPOSE_FILE --project-directory $PROJECT_DIR --profile flower down
+    ;;
+  "start")
+    docker compose -f $COMPOSE_FILE --project-directory $PROJECT_DIR --profile flower start
+    ;;
+  "init")
+    mkdir -p $PROJECT_DIR/config
+    mkdir -p $PROJECT_DIR/logs
+    mkdir -p $PROJECT_DIR/plugins
+    echo -e "AIRFLOW_UID=$(id -u)" > $PROJECT_DIR/.env
+    docker compose -f $COMPOSE_FILE --project-directory $PROJECT_DIR --profile flower up airflow-init
     ;;
   *)
     docker compose -f $COMPOSE_FILE --project-directory $PROJECT_DIR --profile flower up -d
