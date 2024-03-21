@@ -27,5 +27,5 @@ with DAG(
     t4 = UnicoreGenericOperator(task_id="4", name="testjob_generic_4", executable="echo Test 4")
     
     t5 = UnicoreGenericOperator(task_id="5", name="testjob_generic_5", executable="curl -X GET www.google.com")
-    t6 = UnicoreGenericOperator(task_id="6", name="testjob_generic_6", executable="echo", arguments=[{ "Values": ["1", "2", "3"] }])
+    t6 = UnicoreGenericOperator(task_id="6", name="testjob_generic_6", executable="echo", arguments=["1", "2", "3"])
     
