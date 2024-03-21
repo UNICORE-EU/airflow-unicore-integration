@@ -10,11 +10,11 @@ class JobDescriptionException(BaseException):
 class UnicoreGenericOperator(BaseOperator):
 
     def __init__(self, name: str, application_name : str = None, application_version: str = None, executable: str = None, arguments: List[str | Dict[str, int | float | str | List[str]]] = None, 
-                 environment: Dict[str,str] = None, parameters: Dict[str,str | List[str]] = None, stdout: str = None, stderr: str = None, stdin: str = None, ignore_non_zero_exit_code: bool = None, 
+                 environment: List[str] = None, parameters: Dict[str,str | List[str]] = None, stdout: str = None, stderr: str = None, stdin: str = None, ignore_non_zero_exit_code: bool = None, 
                  user_pre_command: str = None, run_user_pre_command_on_login_node: bool = None, user_pre_command_ignore_non_zero_exit_code: bool = None, user_post_command: str = None, 
                  run_user_post_command_on_login_node: bool = None, user_post_command_ignore_non_zero_exit_code: bool = None, resources: Dict[str, str] = None, project: str = None, 
                  imports: List[Dict[str,str | List[str]]] = None, exports: List[Dict[str,str | List[str]]] = None, have_client_stagein: bool = None, job_type: str = None, 
-                 login_node: str = None, bss_file: str = None, tags: List[str] = None, notification: str = None, user_email: str = None, **kwargs):
+                 login_node: str = None, bss_file: str = None, tags: List[str] = None, notification: str = None, user_email: str = None, xcom_output_files: List[str] = ["stdout, stderr"], **kwargs):
         super().__init__(**kwargs)
         self.name = name
         self.application_name = application_name
@@ -44,6 +44,7 @@ class UnicoreGenericOperator(BaseOperator):
         self.tags = tags
         self.notification = notification
         self.user_email = user_email
+        self.xcom_output_files = xcom_output_files
 
         self.validate_job_description()
 
@@ -66,19 +67,19 @@ class UnicoreGenericOperator(BaseOperator):
             job_description_dict["ApplicationName"] = self.application_name
         
         if self.application_version is not None:
-            job_description_dict["ApplicationVersion"] =self.application_version
+            job_description_dict["ApplicationVersion"] = self.application_version
         
         if self.executable is not None:
-            job_description_dict["Executable"] =self.executable
+            job_description_dict["Executable"] = self.executable
 
         if self.arguments is not None:
-            job_description_dict["Arguments"] = self.get_arguments_fragment()
+            job_description_dict["Arguments"] = self.arguments
         
         if self.environment is not None:
-            job_description_dict["Environment"] = self.get_environment_fragment()
+            job_description_dict["Environment"] = self.environment
 
         if self.parameters is not None:
-            job_description_dict["Parameters"] = self.get_parameters_fragment()
+            job_description_dict["Parameters"] = self.parameters
         
         if self.stdout is not None:
             job_description_dict["Stdout"] = self.stdout
@@ -90,58 +91,58 @@ class UnicoreGenericOperator(BaseOperator):
             job_description_dict["Stdin"] = self.stdin
 
         if self.ignore_non_zero_exit_code is not None:
-            job_description_dict["IgnoreNonZeroExitCode"] =self.ignore_non_zero_exit_code
+            job_description_dict["IgnoreNonZeroExitCode"] = self.ignore_non_zero_exit_code
         
         if self.user_pre_command is not None:
-            job_description_dict["User precommand"] =self.user_pre_command
+            job_description_dict["User precommand"] = self.user_pre_command
 
         if self.run_user_pre_command_on_login_node is not None:
-            job_description_dict["RunUserPrecommandOnLoginNode"] =self.run_user_pre_command_on_login_node
+            job_description_dict["RunUserPrecommandOnLoginNode"] = self.run_user_pre_command_on_login_node
         
         if self.user_pre_command_ignore_non_zero_exit_code is not None:
-            job_description_dict["UserPrecommandIgnoreNonZeroExitCode"] =self.user_pre_command_ignore_non_zero_exit_code
+            job_description_dict["UserPrecommandIgnoreNonZeroExitCode"] = self.user_pre_command_ignore_non_zero_exit_code
 
         if self.user_post_command is not None:
-            job_description_dict["User postcommand"] =self.user_post_command
+            job_description_dict["User postcommand"] = self.user_post_command
 
         if self.run_user_post_command_on_login_node is not None:
-            job_description_dict["RunUserPostcommandOnLoginNode"] =self.run_user_post_command_on_login_node
+            job_description_dict["RunUserPostcommandOnLoginNode"] = self.run_user_post_command_on_login_node
 
         if self.user_post_command_ignore_non_zero_exit_code is not None:
-            job_description_dict["UserPostcommandIgnoreNonZeroExitCode"] =self.user_post_command_ignore_non_zero_exit_code
+            job_description_dict["UserPostcommandIgnoreNonZeroExitCode"] = self.user_post_command_ignore_non_zero_exit_code
 
         if self.resources is not None:
-            job_description_dict["Resources"] = self.get_resources_fragment()
+            job_description_dict["Resources"] = self.resources
 
         if self.project is not None:
-            job_description_dict["Project"] =self.project
+            job_description_dict["Project"] = self.project
 
         if self.imports is not None:
-            job_description_dict["Imports"] = self.get_imports_fragment()
+            job_description_dict["Imports"] = self.imports
         
         if self.exports is not None:
-            job_description_dict["Exports"] = self.get_exports_fragment()
+            job_description_dict["Exports"] = self.exports
 
         if self.have_client_stagein is not None:
-            job_description_dict["haveClientStageIn"] =self.have_client_stagein
+            job_description_dict["haveClientStageIn"] =s elf.have_client_stagein
 
         if self.job_type is not None:
-            job_description_dict["Job type"] =self.job_type
+            job_description_dict["Job type"] = self.job_type
 
         if self.login_node is not None:
-            job_description_dict["Login node"] =self.login_node
+            job_description_dict["Login node"] = self.login_node
 
         if self.bss_file is not None:
-            job_description_dict["BSS file"] =self.bss_file
+            job_description_dict["BSS file"] = self.bss_file
 
         if self.notification is not None:
-            job_description_dict["Notification"] =self.notification
+            job_description_dict["Notification"] = self.notification
 
         if self.user_email is not None:
-            job_description_dict["User email"] =self.user_email
+            job_description_dict["User email"] = self.user_email
 
         if self.tags is not None:
-            job_description_dict["Tags"] = self.get_tags_fragment()
+            job_description_dict["Tags"] = self.tags
 
         return job_description_dict
         
@@ -161,7 +162,9 @@ class UnicoreGenericOperator(BaseOperator):
         return job
 
     def execute(self, context: Context) -> Any:
+        import logging        
         from pyunicore.client import JobStatus, Job
+        logger = logging.getLogger(__name__)
         job: Job = self.execute_async(context)
         job.poll() # wait for job to finish
 
@@ -169,11 +172,10 @@ class UnicoreGenericOperator(BaseOperator):
 
 
         if job.status is not JobStatus.SUCCESSFUL:
-            import logging
             from airflow.exceptions import AirflowFailException
-            logging.getLogger(__name__).error(f"Unicore job not successful. Job state is {job.status}. Aborting this task.")
             task_instance.xcom_push(key="status_message", value=job.properties["statusMessage"])
             task_instance.xcom_push(key="log", value=job.properties["log"])
+            logger.error(f"Unicore job not successful. Job state is {job.status}. Aborting this task.")
             raise AirflowFailException
 
 
@@ -185,51 +187,22 @@ class UnicoreGenericOperator(BaseOperator):
         for filename in content.keys():
             if "/UNICORE_Job_" in filename:
                 task_instance.xcom_push(key="Unicore Job ID", value=filename[13:])
-
-        stdout = work_dir.stat("/stdout") # TODO needs to be updated to not automatically do this, once outputs are supported
-        content = stdout.raw().read()
-        task_instance.xcom_push(key="stdout", value=content.decode("utf-8"))
+                break
+        
+        from requests.exceptions import HTTPError
+        for file in self.xcom_output_files:
+            try:
+                logger.debug(f"Retreiving file {file} from workdir.")
+                remote_file = work_dir.stat(file)
+                content = remote_file.raw().read().decode("utf-8")
+                task_instance.xcom_push(key=file,value=content)
+            except HTTPError:
+                logger.error(f"Error while retreiving file {file} from workdir.")
+                continue
 
         exit_code = job.properties["exitCode"]
         return exit_code
 
-    # helper functions for appending the more complex arguments to the job description string
-    # arguments, environment, parameters, imports, exports and tags
-
-    def get_arguments_fragment(arguments: List[str | Dict[str, int | float | str | List[str]]]) -> str:
-        # TODO
-        arguments_fragment = ''
-        return arguments_fragment
-    
-    def get_environment_fragment(environment: Dict[str,str]) -> str:
-        # TODO
-        env_fragment = ''
-        return env_fragment
-    
-    def get_parameters_fragment(parameters: Dict[str,str | List[str]]) -> str:
-        # TODO
-        parameters_fragment = ''
-        return parameters_fragment
-    
-    def get_imports_fragment(imports: List[Dict[str,str | List[str]]]) -> str:
-        # TODO
-        imports_fragment = ''
-        return imports_fragment
-    
-    def get_exports_fragment(exports: List[Dict[str,str | List[str]]]) -> str:
-        # TODO
-        exports_fragment = ''
-        return exports_fragment
-    
-    def get_tags_fragment(tags: List[str]) -> str:
-        # TODO
-        tags_fragment = ''
-        return tags_fragment
-    
-    def get_resources_fragment(resources: Dict[str, str]) -> str:
-        # TODO
-        resources_fragment = ''
-        return resources_fragment
 
 class UnicoreExecutableOperator(BaseOperator):
     def __init__(self, name: str, executable: str, output_files : List[str] = list(), **kwargs) -> None:
