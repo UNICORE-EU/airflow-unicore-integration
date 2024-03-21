@@ -124,7 +124,7 @@ class UnicoreGenericOperator(BaseOperator):
             job_description_dict["Exports"] = self.exports
 
         if self.have_client_stagein is not None:
-            job_description_dict["haveClientStageIn"] =s elf.have_client_stagein
+            job_description_dict["haveClientStageIn"] =self.have_client_stagein
 
         if self.job_type is not None:
             job_description_dict["Job type"] = self.job_type
