@@ -3,18 +3,20 @@ from typing import Any, List, Dict
 
 from airflow.utils.context import Context
 
+DEFAULT_SCRIPT_NAME = 'default_script_from_job_description'
+
 class JobDescriptionException(BaseException):
     def __init__(self, *args: object) -> None:
         super().__init__(*args)
 
 class UnicoreGenericOperator(BaseOperator):
 
-    def __init__(self, name: str, application_name : str = None, application_version: str = None, executable: str = None, arguments: List[str | Dict[str, int | float | str | List[str]]] = None, 
+    def __init__(self, name: str, application_name : str = None, application_version: str = None, executable: str = None, arguments: List[str] = None, 
                  environment: List[str] = None, parameters: Dict[str,str | List[str]] = None, stdout: str = None, stderr: str = None, stdin: str = None, ignore_non_zero_exit_code: bool = None, 
                  user_pre_command: str = None, run_user_pre_command_on_login_node: bool = None, user_pre_command_ignore_non_zero_exit_code: bool = None, user_post_command: str = None, 
                  run_user_post_command_on_login_node: bool = None, user_post_command_ignore_non_zero_exit_code: bool = None, resources: Dict[str, str] = None, project: str = None, 
                  imports: List[Dict[str,str | List[str]]] = None, exports: List[Dict[str,str | List[str]]] = None, have_client_stagein: bool = None, job_type: str = None, 
-                 login_node: str = None, bss_file: str = None, tags: List[str] = None, notification: str = None, user_email: str = None, xcom_output_files: List[str] = ["stdout, stderr"], **kwargs):
+                 login_node: str = None, bss_file: str = None, tags: List[str] = None, notification: str = None, user_email: str = None, xcom_output_files: List[str] = ["stdout", "stderr"], **kwargs):
         super().__init__(**kwargs)
         self.name = name
         self.application_name = application_name
@@ -165,16 +167,19 @@ class UnicoreGenericOperator(BaseOperator):
         import logging        
         from pyunicore.client import JobStatus, Job
         logger = logging.getLogger(__name__)
+        
         job: Job = self.execute_async(context)
+        logger.debug(f"Waiting for unicore job {job}")
         job.poll() # wait for job to finish
 
         task_instance = context['task_instance']
 
-
+        
+        task_instance.xcom_push(key="status_message", value=job.properties["statusMessage"])
+        task_instance.xcom_push(key="log", value=job.properties["log"])
+        
         if job.status is not JobStatus.SUCCESSFUL:
             from airflow.exceptions import AirflowFailException
-            task_instance.xcom_push(key="status_message", value=job.properties["statusMessage"])
-            task_instance.xcom_push(key="log", value=job.properties["log"])
             logger.error(f"Unicore job not successful. Job state is {job.status}. Aborting this task.")
             raise AirflowFailException
 
@@ -196,59 +201,31 @@ class UnicoreGenericOperator(BaseOperator):
                 remote_file = work_dir.stat(file)
                 content = remote_file.raw().read().decode("utf-8")
                 task_instance.xcom_push(key=file,value=content)
-            except HTTPError:
-                logger.error(f"Error while retreiving file {file} from workdir.")
+            except HTTPError as http_error:
+                logger.error(f"Error while retreiving file {file} from workdir.", http_error)
                 continue
+            except UnicodeDecodeError as unicore_error:
+                logger.error(f"Error while decoding file {file}.", unicore_error)
 
         exit_code = job.properties["exitCode"]
         return exit_code
 
+class UnicoreScriptOperator(UnicoreGenericOperator):
+    def __init__(self, name: str, script_content: str, **kwargs):
+        super().__init__(name=name, executable=DEFAULT_SCRIPT_NAME, **kwargs)
+        lines = script_content.split('\n')
+        script_stagein = {
+            "To":   DEFAULT_SCRIPT_NAME,
+            "Data": lines
+            }
+        if self.imports is not None:
+            self.imports.append(script_stagein)
+        else:
+            self.imports = [script_stagein]
 
-class UnicoreExecutableOperator(BaseOperator):
-    def __init__(self, name: str, executable: str, output_files : List[str] = list(), **kwargs) -> None:
-        super().__init__(**kwargs)
-        self.name = name
-        self.executable = executable
-        self.output_files = output_files
-
-    def execute(self, context):
-        import pyunicore.client as uc_client
-        import pyunicore.credentials as uc_credentials
-
-        # run date with demouser on hardcoded unicore url
-        base_url = "https://unicore:8080/DEMO-SITE/rest/core" # get this from airflow config and task attributes
-        credential = uc_credentials.UsernamePassword("demouser", "test123") # get this from user session or configured service account
-        client = uc_client.Client(credential, base_url)
-        my_job = {'Executable': self.executable}
-
-        job = client.new_job(job_description=my_job, inputs=[])
-
-        job.poll() # wait for job to finish
-
-        work_dir = job.working_dir
-
-        task_instance = context['task_instance']
-
-        content = work_dir.contents()['content']
-        task_instance.xcom_push(key="workdir_content", value=content)
-
-        for filename in content.keys():
-            if "/UNICORE_Job_" in filename:
-                task_instance.xcom_push(key="Unicore Job ID", value=filename[13:])
-                break
-
-
-        for of_file in self.output_files:
-            content = work_dir.stat(f"/{of_file}").raw().read().decode("utf-8")
-            task_instance.xcom_push(key=of_file, value=content)
-
-        stdout = work_dir.stat("/stdout")
-        content = stdout.raw().read()
-        task_instance.xcom_push(key="stdout", value=content.decode("utf-8"))
-
-        exit_code = work_dir.stat("/UNICORE_SCRIPT_EXIT_CODE")
-        exit_code = exit_code.raw().read()
-        return exit_code.decode("utf-8")
+class UnicoreExecutableOperator(UnicoreGenericOperator):
+    def __init__(self, name: str, executable: str, output_files : List[str] = ["stdout"], **kwargs) -> None:
+        super().__init__(name=name, executable=executable, xcom_output_files=output_files, **kwargs)
 
 class UnicoreDateOperator(UnicoreExecutableOperator):
     def __init__(self, name: str, **kwargs) -> None:
