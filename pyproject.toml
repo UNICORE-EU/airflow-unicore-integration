@@ -17,7 +17,7 @@ readme = {file = "README.txt", content-type = "text/markdown"}
 requires-python = ">=3.8"
 classifiers = [
     "Development Status :: 1 - Pre-Alpha",
-    "Framework :: Apache Airflow :: Provider".
+    "Framework :: Apache Airflow :: Provider",
     "Programming Language :: Python :: 3",
     "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
