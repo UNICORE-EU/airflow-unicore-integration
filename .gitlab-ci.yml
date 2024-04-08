@@ -48,6 +48,8 @@ build_package:
   script:
     - pip install -r requirements.txt
     - pip install build
+    - VER=${CI_COMMIT_TAG#*-}
+    - sed -i "s_0.0.1-dev_${VER}_g" pyproject.toml
     - python -m build
   artifacts:
     paths:
