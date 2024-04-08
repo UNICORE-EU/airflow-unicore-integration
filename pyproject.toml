@@ -1,22 +1,36 @@
 [build-system]
-requires = ["setuptools>=61.0"]
+requires = [
+  "setuptools>=61.0",
+  "setuptools-scm>=8.0"
+  ]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "airflow_unicore_integration"
-version = "0.0.1"
+#version = "0.0.1"
+dynamic = ["version"]
 authors = [
   { name="Christian Böttcher", email="c.boettcher@fz-juelich.de" },
 ]
 description = "Running Unicore Jobs from airflow DAGs."
-readme = "README.md"
+readme = {file = "README.txt", content-type = "text/markdown"}
 requires-python = ">=3.8"
 classifiers = [
+    "Development Status :: 1 - Pre-Alpha",
+    "Framework :: Apache Airflow :: Provider".
     "Programming Language :: Python :: 3",
     "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
 ]
 
+
+
+dependencies = [
+    "pyunicore>=1.0.0",
+    "apache-airflow==2.8.4"
+]
+
 [project.urls]
-Homepage = "TODO"
-Issues = "TODO"
+Homepage = "https://gitlab.jsc.fz-juelich.de/boettcher1/airflow_unicore_integration"
+Issues = "https://gitlab.jsc.fz-juelich.de/boettcher1/airflow_unicore_integration/-/issues"
+

@@ -1,0 +1,62 @@
+image: python:3.10-slim
+
+
+# Change pip's cache directory to be inside the project directory since we can
+# only cache local items.
+variables:
+  PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
+
+# Pip's cache doesn't store the python packages
+# https://pip.pypa.io/en/stable/reference/pip_install/#caching
+#
+# If you want to also cache the installed packages, you have to install
+# them in a virtualenv and cache it as well.
+cache:
+  paths:
+    - .cache/pip
+    - venv/
+
+stages:
+  - test
+  - build
+  - publish
+
+
+before_script:
+  - python -V  # Print out python version for debugging
+  - pip install virtualenv
+  - virtualenv venv
+  - source venv/bin/activate
+
+# TODO enable testing once there are actual tests
+#test_package:
+#  stage: test
+#  script:
+#    - pip install -r requirements.txt
+#    - pytest --cov=datacat_integration --cov-report=xml --cov-report=term
+#  artifacts:
+#    reports:
+#      coverage_report: 
+#        coverage_format: cobertura
+#        path: coverage.xml
+
+
+build_package:
+  only:
+    - tags
+  stage: build
+  script:
+    - pip install -r requirements.txt
+    - python -m build
+  artifacts:
+    paths:
+      - dist/*.whl
+      - dist/*.tar.gz
+
+publish_package:
+  only:
+    - tags
+  stage: publish
+  script:
+    - pip install twine
+    - TWINE_PASSWORD=${CI_JOB_TOKEN} TWINE_USERNAME=gitlab-ci-token python -m twine upload --repository-url ${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/pypi dist/*

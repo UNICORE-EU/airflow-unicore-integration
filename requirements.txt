@@ -1,1 +1,2 @@
-pyunicore
+pyunicore>=1.0.0
+apache-airflow==2.8.4
