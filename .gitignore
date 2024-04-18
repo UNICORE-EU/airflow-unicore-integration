@@ -1,10 +1,14 @@
+# local testing env
 project-dir/config
 project-dir/logs
 project-dir/plugins
 
+# python
 env
-
 __pycache__
 dist
 build
 *.egg-info
+
+# VSCODE
+settings.json
