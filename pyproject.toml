@@ -5,7 +5,7 @@ requires = [
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "airflow_unicore_integration"
+name = "airflow-unicore-integration"
 version = "0.0.1-dev"
 authors = [
   { name="Christian Böttcher", email="c.boettcher@fz-juelich.de" },
@@ -32,3 +32,5 @@ dependencies = [
 Homepage = "https://gitlab.jsc.fz-juelich.de/boettcher1/airflow_unicore_integration"
 Issues = "https://gitlab.jsc.fz-juelich.de/boettcher1/airflow_unicore_integration/-/issues"
 
+[project.entry-points."apache_airflow_provider"]
+provider_info = "airflow_unicore_integration:get_provider_info"

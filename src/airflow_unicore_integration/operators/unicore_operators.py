@@ -1,7 +1,11 @@
 from airflow.models.baseoperator import BaseOperator
+from airflow.decorators.base import DecoratedOperator, task_decorator_factory
 from typing import Any, List, Dict
 
 from airflow.utils.context import Context
+
+import pyunicore.client as uc_client
+from airflow_unicore_integration.hooks import unicore_hooks
 
 DEFAULT_SCRIPT_NAME = 'default_script_from_job_description'
 
@@ -11,12 +15,12 @@ class JobDescriptionException(BaseException):
 
 class UnicoreGenericOperator(BaseOperator):
 
-    def __init__(self, name: str, application_name : str = None, application_version: str = None, executable: str = None, arguments: List[str] = None, 
-                 environment: List[str] = None, parameters: Dict[str,str | List[str]] = None, stdout: str = None, stderr: str = None, stdin: str = None, ignore_non_zero_exit_code: bool = None, 
-                 user_pre_command: str = None, run_user_pre_command_on_login_node: bool = None, user_pre_command_ignore_non_zero_exit_code: bool = None, user_post_command: str = None, 
-                 run_user_post_command_on_login_node: bool = None, user_post_command_ignore_non_zero_exit_code: bool = None, resources: Dict[str, str] = None, project: str = None, 
-                 imports: List[Dict[str,str | List[str]]] = None, exports: List[Dict[str,str | List[str]]] = None, have_client_stagein: bool = None, job_type: str = None, 
-                 login_node: str = None, bss_file: str = None, tags: List[str] = None, notification: str = None, user_email: str = None, xcom_output_files: List[str] = ["stdout", "stderr"], **kwargs):
+    def __init__(self, name: str, application_name : str | None = None, application_version: str | None = None, executable: str | None = None, arguments: List[str] | None = None, 
+                 environment: List[str] | None = None, parameters: Dict[str,str | List[str]] | None = None, stdout: str | None = None, stderr: str | None = None, stdin: str | None = None, ignore_non_zero_exit_code: bool | None = None, 
+                 user_pre_command: str | None = None, run_user_pre_command_on_login_node: bool | None = None, user_pre_command_ignore_non_zero_exit_code: bool | None = None, user_post_command: str | None = None, 
+                 run_user_post_command_on_login_node: bool | None = None, user_post_command_ignore_non_zero_exit_code: bool | None = None, resources: Dict[str, str] | None = None, project: str | None = None, 
+                 imports: List[Dict[str,str | List[str]]] | None = None, exports: List[Dict[str,str | List[str]]] | None = None, have_client_stagein: bool | None = None, job_type: str | None = None, 
+                 login_node: str | None = None, bss_file: str | None = None, tags: List[str] | None = None, notification: str | None = None, user_email: str | None = None, xcom_output_files: List[str] = ["stdout", "stderr"], **kwargs):
         super().__init__(**kwargs)
         self.name = name
         self.application_name = application_name
@@ -58,7 +62,7 @@ class UnicoreGenericOperator(BaseOperator):
             raise JobDescriptionException
         
     
-    def get_job_description(self) -> str:
+    def get_job_description(self) -> dict[str,Any]:
         job_description_dict: Dict = {}
 
         # now add the various simple string attribute fragments to the list, when they are not None
@@ -148,15 +152,13 @@ class UnicoreGenericOperator(BaseOperator):
 
         return job_description_dict
         
-    def get_uc_client(self):
-        import pyunicore.client as uc_client
-        import pyunicore.credentials as uc_credentials
+    def get_uc_client(self, uc_conn_id: str | None = None) -> uc_client.Client:
 
-        # run date with demouser on hardcoded unicore url
-        base_url = "https://unicore:8080/DEMO-SITE/rest/core" # get this from airflow config and task attributes
-        credential = uc_credentials.UsernamePassword("demouser", "test123") # get this from user session or configured service account
-        client = uc_client.Client(credential, base_url)
-        return client
+        if uc_conn_id is None:
+            hook = unicore_hooks.UnicoreHook()
+        else:
+            hook = unicore_hooks.UnicoreHook(uc_conn_id=uc_conn_id)
+        return hook.get_conn()
     
     def execute_async(self, context: Context) -> Any:
         client = self.get_uc_client()
@@ -222,6 +224,12 @@ class UnicoreScriptOperator(UnicoreGenericOperator):
             self.imports.append(script_stagein)
         else:
             self.imports = [script_stagein]
+
+class UnicorePythonOperator(UnicoreGenericOperator):
+    pass
+
+class _UnicorePythonDecoratedOperator(UnicorePythonOperator,DecoratedOperator):
+    pass
 
 class UnicoreExecutableOperator(UnicoreGenericOperator):
     def __init__(self, name: str, executable: str, output_files : List[str] = ["stdout"], **kwargs) -> None:
