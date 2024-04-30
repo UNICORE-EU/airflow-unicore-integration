@@ -12,7 +12,7 @@ authors = [
 ]
 description = "Running Unicore Jobs from airflow DAGs."
 readme = {file = "README.txt", content-type = "text/markdown"}
-requires-python = ">=3.8"
+requires-python = ">=3.10"
 classifiers = [
     "Development Status :: 1 - Pre-Alpha",
     "Framework :: Apache Airflow :: Provider",
