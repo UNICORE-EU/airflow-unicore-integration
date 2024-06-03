@@ -24,19 +24,23 @@ class UnicoreHook(BaseHook):
         self.uc_conn_id = uc_conn_id
         self.conn = None
 
-    def get_conn(self) -> client.Client:
-        """Return a Unicore Client."""
-        if self.conn is None:
+    def get_conn(self, overwrite_base_url: str | None = None, overwrite_credential : credentials.Credential | None = None) -> client.Client:
+        """Return a Unicore Client. base_url and credentials may be overwritten."""
+        if self.conn is None or overwrite_base_url is not None or overwrite_credential is not None: # if not generated, or overwrite attribute is set crete new
             params = self.get_connection(self.uc_conn_id)
             base_url = params.host
             credential = credentials.UsernamePassword(params.login, params.password)
+            if overwrite_base_url is not None:
+                base_url = overwrite_base_url
+            if overwrite_credential is not None:
+                credential = overwrite_credential
             self.conn = client.Client(credential, base_url)
 
         return self.conn
 
 
     def test_connection(self) -> tuple[bool, str]:
-        """Test the FTP connection by calling path with directory."""
+        """Test the connection by sending an access_info request"""
         try:
             conn = self.get_conn()
             conn.access_info()

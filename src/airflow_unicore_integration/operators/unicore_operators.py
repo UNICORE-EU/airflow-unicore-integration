@@ -5,9 +5,15 @@ from typing import Any, List, Dict
 from airflow.utils.context import Context
 
 import pyunicore.client as uc_client
+import pyunicore.credentials as uc_credentials
 from airflow_unicore_integration.hooks import unicore_hooks
 
+import logging
+
+logger = logging.getLogger(__name__)
+
 DEFAULT_SCRIPT_NAME = 'default_script_from_job_description'
+DEFAULT_BSS_FILE = 'default_bss_file_upload'
 
 class JobDescriptionException(BaseException):
     def __init__(self, *args: object) -> None:
@@ -20,7 +26,19 @@ class UnicoreGenericOperator(BaseOperator):
                  user_pre_command: str | None = None, run_user_pre_command_on_login_node: bool | None = None, user_pre_command_ignore_non_zero_exit_code: bool | None = None, user_post_command: str | None = None, 
                  run_user_post_command_on_login_node: bool | None = None, user_post_command_ignore_non_zero_exit_code: bool | None = None, resources: Dict[str, str] | None = None, project: str | None = None, 
                  imports: List[Dict[str,str | List[str]]] | None = None, exports: List[Dict[str,str | List[str]]] | None = None, have_client_stagein: bool | None = None, job_type: str | None = None, 
-                 login_node: str | None = None, bss_file: str | None = None, tags: List[str] | None = None, notification: str | None = None, user_email: str | None = None, xcom_output_files: List[str] = ["stdout", "stderr"], **kwargs):
+                 login_node: str | None = None, bss_file: str | None = None, tags: List[str] | None = None, notification: str | None = None, user_email: str | None = None, xcom_output_files: List[str] = ["stdout", "stderr"], 
+                 base_url: str | None = None, credential: uc_credentials.Credential | None = None, credential_username: str | None = None, credential_password: str | None = None, credential_token: str | None = None, **kwargs):
+        """
+        Initialize a Unicore Job Operator. 
+        :param name: The name parameter defines both the airflow task name and the unicore job name. 
+        :param base_url:
+        :param credential:
+        :param credential_username:
+        :param credential_password:
+        :param credential_token:
+
+        All other parameters are parameters for the Unicore Job Description as defined [here](https://unicore-docs.readthedocs.io/en/latest/user-docs/rest-api/job-description/index.html#overview).
+        """
         super().__init__(**kwargs)
         self.name = name
         self.application_name = application_name
@@ -52,14 +70,36 @@ class UnicoreGenericOperator(BaseOperator):
         self.user_email = user_email
         self.xcom_output_files = xcom_output_files
 
+        self.base_url = base_url
+        self.credential = credential
+        self.credential_username = credential_username
+        self.credential_password = credential_password
+        self.credential_token = credential_token
+
         self.validate_job_description()
+        logger.debug("created Unicore Job Task")
 
     def validate_job_description(self):
         # check for some errors in the parameters for creating the unicore job 
 
-        # first check if application or executable have been set
-        if not self.application_name and not self.executable:
+        # first check if application or executable been set
+        if self.application_name is None and self.executable is None: # TODO check if executable is required if bss_file is given
             raise JobDescriptionException
+        
+        # if bss_file is set, we need an executable
+        if self.bss_file is not None:
+            if self.executable is None and self.application_name is not None:
+                raise JobDescriptionException
+            # TODO validate BSS file?
+            logger.info("using bss file")
+            
+        if self.credential_token is not None and self.credential is None:
+            logger.info("using provided oidc token")
+            self.credential = uc_credentials.OIDCToken(token=self.credential_token)
+
+        if self.credential_username is not None and self.credential_password is not None and self.credential is None:
+            logger.info("using provied user/pass credentials")
+            self.credential = uc_credentials.UsernamePassword(username=self.credential_username, password=self.credential_password)
         
     
     def get_job_description(self) -> dict[str,Any]:
@@ -153,12 +193,13 @@ class UnicoreGenericOperator(BaseOperator):
         return job_description_dict
         
     def get_uc_client(self, uc_conn_id: str | None = None) -> uc_client.Client:
-
+        if self.base_url is not None and self.credential is not None:
+            return uc_client.Client(self.credential, self.base_url)
         if uc_conn_id is None:
             hook = unicore_hooks.UnicoreHook()
         else:
             hook = unicore_hooks.UnicoreHook(uc_conn_id=uc_conn_id)
-        return hook.get_conn()
+        return hook.get_conn(overwrite_base_url=self.base_url, overwrite_credential=self.credential)
     
     def execute_async(self, context: Context) -> Any:
         client = self.get_uc_client()
@@ -170,7 +211,7 @@ class UnicoreGenericOperator(BaseOperator):
         from pyunicore.client import JobStatus, Job
         logger = logging.getLogger(__name__)
         
-        job: Job = self.execute_async(context)
+        job: Job = self.execute_async(context) # TODO depending on params this may spawn multiple jobs -> in those cases, e.g. output needs to be handled differently
         logger.debug(f"Waiting for unicore job {job}")
         job.poll() # wait for job to finish
 
@@ -179,6 +220,8 @@ class UnicoreGenericOperator(BaseOperator):
         
         task_instance.xcom_push(key="status_message", value=job.properties["statusMessage"])
         task_instance.xcom_push(key="log", value=job.properties["log"])
+        for line in job.properties["log"]:
+            logger.info(f"UNICORE LOGS: {line}")
         
         if job.status is not JobStatus.SUCCESSFUL:
             from airflow.exceptions import AirflowFailException
@@ -194,7 +237,13 @@ class UnicoreGenericOperator(BaseOperator):
         for filename in content.keys():
             if "/UNICORE_Job_" in filename:
                 task_instance.xcom_push(key="Unicore Job ID", value=filename[13:])
-                break
+                jobt_text = work_dir.stat(filename).raw().read().decode("utf-8")
+                task_instance.xcom_push(key="UNICORE Job", value=jobt_text)
+                continue
+            if "bss_submit_" in filename:
+                bss_submit_text = work_dir.stat(filename).raw().read().decode("utf-8")
+                task_instance.xcom_push(key="BSS_SUBMIT", value=bss_submit_text)
+                continue
         
         from requests.exceptions import HTTPError
         for file in self.xcom_output_files:
@@ -225,11 +274,18 @@ class UnicoreScriptOperator(UnicoreGenericOperator):
         else:
             self.imports = [script_stagein]
 
-class UnicorePythonOperator(UnicoreGenericOperator):
-    pass
-
-class _UnicorePythonDecoratedOperator(UnicorePythonOperator,DecoratedOperator):
-    pass
+class UnicoreBSSOperator(UnicoreGenericOperator):
+    def __init__(self, name: str, bss_file_content: str, executable: str, **kwargs):
+        super().__init__(name=name, bss_file=DEFAULT_BSS_FILE, executable=executable, job_type="raw", **kwargs)
+        lines = bss_file_content.split('\n')
+        bss_stagein = {
+            "To":   DEFAULT_BSS_FILE,
+            "Data": lines
+            }
+        if self.imports is not None:
+            self.imports.append(bss_stagein)
+        else:
+            self.imports = [bss_stagein]
 
 class UnicoreExecutableOperator(UnicoreGenericOperator):
     def __init__(self, name: str, executable: str, output_files : List[str] = ["stdout"], **kwargs) -> None:
