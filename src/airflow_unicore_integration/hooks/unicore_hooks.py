@@ -9,9 +9,9 @@ class UnicoreHook(BaseHook):
     """
     Interact with Unicore.
 
-    Errors that may occur throughout but should be handled downstream.
+    Creates Unicore Clients from airflow connections.
 
-    :param uc_conn_id: The unicore connection id
+    :param uc_conn_id: The unicore connection id - default: uc_default
     """
 
     conn_name_attr = "uc_conn_id"
