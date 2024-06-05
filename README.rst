@@ -17,3 +17,9 @@ Run ``testing-env/run-testing-env.sh init`` to initialize the airflow containers
 Run ``testing-env/run-testing-env.sh up`` to start the local airflow and UNICORE deployment. Airflow will be available on port 8080, UNICORE on port 8081.
 
 The ``run-testing-env.sh`` script supports the commands up, down, start, stop, ps and init for matching docker compose functions.
+
+=======================
+Install package via pip
+=======================
+
+``pip install airflow-unicore-integration --index-url https://gitlab.jsc.fz-juelich.de/api/v4/projects/6269/packages/pypi/simple``
