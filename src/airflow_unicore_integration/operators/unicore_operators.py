@@ -314,7 +314,7 @@ class UnicoreBSSOperator(UnicoreGenericOperator):
 
 class UnicoreExecutableOperator(UnicoreGenericOperator):
     """A simplified operator for just executing an executable. Still supports all parameters fo the UnicoreBaseOperator."""
-    def __init__(self, name: str, executable: str, output_files : List[str] = ["stdout"], **kwargs) -> None:
+    def __init__(self, name: str, executable: str, xcom_output_files : List[str] = ["stdout","stderr"], **kwargs) -> None:
         super().__init__(name=name, executable=executable, xcom_output_files=output_files, **kwargs)
 
 class UnicoreDateOperator(UnicoreExecutableOperator):
