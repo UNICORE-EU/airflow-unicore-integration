@@ -14,7 +14,7 @@ description = "Running Unicore Jobs from airflow DAGs."
 readme = {file = "README.txt", content-type = "text/markdown"}
 requires-python = ">=3.10"
 classifiers = [
-    "Development Status :: 1 - Pre-Alpha",
+    "Development Status :: 4 - Beta",
     "Framework :: Apache Airflow :: Provider",
     "Programming Language :: Python :: 3",
     "License :: OSI Approved :: MIT License",
