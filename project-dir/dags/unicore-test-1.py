@@ -24,7 +24,7 @@ with DAG(
     t2 = uc_ops.UnicoreDateOperator(name="task 2", task_id="2")
     t3 = uc_ops.UnicoreExecutableOperator(name="task 3", task_id="3", executable="echo Hello World!")
     t4 = uc_ops.UnicoreExecutableOperator(name="task 4", task_id="4", executable="echo something >> out2 && echo something else >> out3 && echo Third echo here")
-    t5 = uc_ops.UnicoreExecutableOperator(name="task 5", task_id="5", executable="echo something >> out2 && echo else >> out3 && echo Third echo here", output_files=list(['out2', 'out3', 'stderr']))
+    t5 = uc_ops.UnicoreExecutableOperator(name="task 5", task_id="5", executable="echo something >> out2 && echo else >> out3 && echo Third echo here", xcom_output_files=list(['out2', 'out3', 'stderr']))
     t1 >> t5
     t2 >> t5
     t3 >> t5
