@@ -2,6 +2,12 @@
 Unicore Airflow Integration
 ===========================
 
+This project integrates `UNICORE <https://github.com/UNICORE-EU>`_ and `Apache Airflow <https://airflow.apache.org/>`_.
+UNICORE is a software suite that, among other functions, provides seamless access to high-performance compute and data resources.
+Airflow is a platform to programmatically author, schedule and monitor workflows. 
+
+In the current state, this projects provides a set of airflow `operators <https://airflow.apache.org/docs/apache-airflow/stable/core-concepts/operators.html>`_, which can be used as part of airflow workflows to submit jobs to Unicore.
+
 
 ---------------------------
 Using the Unicore Operators
