@@ -135,4 +135,4 @@ The ``run-testing-env.sh`` script supports the commands up, down, start, stop, p
 Install package via pip
 -----------------------
 
-``pip install airflow-unicore-integration --index-url https://gitlab.jsc.fz-juelich.de/api/v4/projects/6269/packages/pypi/simple``
+``pip install airflow-unicore-integration``
