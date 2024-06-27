@@ -29,8 +29,8 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://gitlab.jsc.fz-juelich.de/boettcher1/airflow_unicore_integration"
-Issues = "https://gitlab.jsc.fz-juelich.de/boettcher1/airflow_unicore_integration/-/issues"
+Homepage = "https://github.com/UNICORE-EU/airflow-unicore-integration"
+Issues = "https://github.com/UNICORE-EU/airflow-unicore-integration/issues"
 
 [project.entry-points."apache_airflow_provider"]
 provider_info = "airflow_unicore_integration:get_provider_info"
