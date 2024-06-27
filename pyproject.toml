@@ -6,18 +6,18 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "airflow-unicore-integration"
-version = "0.0.4"
+version = "0.0.5"
 authors = [
   { name="Christian Böttcher", email="c.boettcher@fz-juelich.de" },
 ]
 description = "Running Unicore Jobs from airflow DAGs."
-readme = {file = "README.txt", content-type = "text/markdown"}
+readme = "README.rst"
 requires-python = ">=3.10"
 classifiers = [
     "Development Status :: 4 - Beta",
     "Framework :: Apache Airflow :: Provider",
     "Programming Language :: Python :: 3",
-    "License :: OSI Approved :: MIT License",
+    "License :: OSI Approved :: BSD",
     "Operating System :: OS Independent",
 ]
 
