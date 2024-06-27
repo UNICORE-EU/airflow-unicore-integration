@@ -29,7 +29,7 @@ with DAG(
     exports = [
         {
             "From" : "date.txt",
-            "To" : "http://webhook.site/a90d8149-9260-42e1-9e51-88d714122418"
+            "To" : "http://webhook.site/a90d8149-9260-42e1-9e51-88d714122418" # insert your own http target here
         }
     ]
     t1 = uc_ops.UnicoreExecutableOperator(name="task 1", task_id="1", executable="cat date.json ", imports=imports)
