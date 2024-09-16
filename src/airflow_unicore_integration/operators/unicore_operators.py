@@ -301,7 +301,7 @@ class UnicoreBSSOperator(UnicoreGenericOperator):
         """
         :param bss_file_content: the content of the BSS-script to be executed as a string
         """
-        super().__init__(name=name, bss_file=DEFAULT_BSS_FILE, job_type="raw", xcom_output_files=[], **kwargs)
+        super().__init__(name=name, **kwargs)
         lines = bss_file_content.split('\n')
         bss_stagein = {
             "To":   DEFAULT_BSS_FILE,
