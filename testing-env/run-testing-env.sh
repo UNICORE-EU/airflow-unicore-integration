@@ -17,6 +17,9 @@ case "$1" in
   "start")
     docker compose -f $COMPOSE_FILE --project-directory $PROJECT_DIR --profile flower start
     ;;
+  "logs")
+    docker compose -f $COMPOSE_FILE --project-directory $PROJECT_DIR --profile flower logs
+    ;;
   "init")
     mkdir -p $PROJECT_DIR/config
     mkdir -p $PROJECT_DIR/logs
