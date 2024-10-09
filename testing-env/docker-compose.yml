@@ -87,6 +87,8 @@ x-airflow-common:
 services:
   postgres:
     image: postgres:13
+    expose:
+      - 5432
     environment:
       POSTGRES_USER: airflow
       POSTGRES_PASSWORD: airflow
@@ -282,7 +284,8 @@ services:
         condition: service_completed_successfully
 
   unicore:
-    image: ghcr.io/unicore-eu/unicore-testing-all
+    #image: ghcr.io/unicore-eu/unicore-testing-all
+    image: unicore-with-deps
     expose:
       - 8080
       - 8081

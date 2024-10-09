@@ -14,7 +14,7 @@ def_args = {
 }
 
 with DAG(
-    "executor-test",
+    "unicore-executor-test",
     default_args=def_args,
     description="executor testing dag",
     schedule_interval=None,

@@ -2,6 +2,7 @@
 project-dir/config
 project-dir/logs
 project-dir/plugins
+**venv**
 
 # python
 env
