@@ -1,7 +1,9 @@
+import time
 from typing import Any, List, Dict
 from airflow.executors.base_executor import BaseExecutor
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.taskinstancekey import TaskInstanceKey
+from airflow.utils.state import TaskInstanceState
 
 
 import pyunicore.client as uc_client
@@ -20,6 +22,18 @@ tasks should be allowed to overwrite SITE, CREDENTIALS_*, UNICORE_CONN_ID and DE
 
 '''
 
+
+STATE_MAPPINGS : Dict[uc_client.JobStatus, TaskInstanceState] = {
+    uc_client.JobStatus.UNDEFINED: TaskInstanceState.FAILED,
+    uc_client.JobStatus.READY : TaskInstanceState.QUEUED,
+    uc_client.JobStatus.STAGINGIN : TaskInstanceState.QUEUED,
+    uc_client.JobStatus.QUEUED : TaskInstanceState.QUEUED,
+    uc_client.JobStatus.RUNNING : TaskInstanceState.RUNNING,
+    uc_client.JobStatus.STAGINGOUT : TaskInstanceState.RUNNING,
+    uc_client.JobStatus.SUCCESSFUL : TaskInstanceState.SUCCESS,
+    uc_client.JobStatus.FAILED : TaskInstanceState.FAILED
+}
+
 class UnicoreExecutor(BaseExecutor):
     
 
@@ -35,7 +49,7 @@ class UnicoreExecutor(BaseExecutor):
 
     change_sensor_mode_to_reschedule = False  # TODO find out what this does;  Running Airflow sensors in poke mode can block the thread of executors and in some cases Airflow.
 
-    serve_logs = False # TODO this should be supported, since unicore logs should be appended;  Whether or not the executor supports serving logs, see Logging for Tasks.
+    serve_logs = True # TODO this should be supported, since unicore logs should be appended;  Whether or not the executor supports serving logs, see Logging for Tasks.
 
     EXECUTOR_CONFIG_PYTHON_ENV_KEY = "python_env" # full path to a python virtualenv that includes airflow and all required libraries for the task (without the .../bin/activate part)
     EXECUTOR_CONFIG_UNICORE_CONN_KEY = "unicore_connection_id" # alternative connection id for the Unicore connection to use
@@ -47,18 +61,34 @@ class UnicoreExecutor(BaseExecutor):
         self.active_jobs : Dict[TaskInstanceKey, uc_client.Job] = {}
 
     def sync(self) -> None:
-        # iterate through submission queue and submit
-        # iterate through task collection and update task/ job status
+        # iterate through task collection and update task/ job status - delete if needed
+        for task, job in list(self.active_jobs.items()):
+            state = STATE_MAPPINGS[job.status]
+            if state == TaskInstanceState.FAILED:
+                self.fail(task)
+                self._forward_unicore_log(task, job)
+                self.active_jobs.pop(task)
+            elif state == TaskInstanceState.SUCCESS:
+                self.success(task)
+                self._forward_unicore_log(task, job)
+                self.active_jobs.pop(task)
+            elif state == TaskInstanceState.RUNNING:
+                self.running(task)
+
         return super().sync()
+
+    def _forward_unicore_log(self, task: TaskInstanceKey, job: uc_client.Job):
+        # TODO retrieve unicore logs from job directory and add lines to the executor log vie self.log - detect log level im possible
+        pass
 
     def _get_unicore_client(self, executor_config: Any | None = {}):
         # include client desires from executor_config
         unicore_conn_id = executor_config.get(UnicoreExecutor.EXECUTOR_CONFIG_UNICORE_CONN_KEY, conf.get("unicore.executor", "UNICORE_CONN_ID")) # task can provide a different unicore connection to use, else airflow-wide default is used
         unicore_site = executor_config.get(UnicoreExecutor.EXECUTOR_CONFIG_UNICORE_SITE_KEY, None) # task can provide a different site to run at, else default from connetion is used
-        unicore_credential = executor_config.get(UnicoreExecutor.EXECUTOR_CONFIG_UNICORE_CREDENTIAL_KEY, None) # tasl can provide a different credential to use, else default from connection is used
+        unicore_credential = executor_config.get(UnicoreExecutor.EXECUTOR_CONFIG_UNICORE_CREDENTIAL_KEY, None) # task can provide a different credential to use, else default from connection is used
         return unicore_hooks.UnicoreHook(uc_conn_id=unicore_conn_id).get_conn(overwrite_base_url=unicore_site, overwrite_credential=unicore_credential)
 
-    def _submit_job(self, key:TaskInstanceKey, command: List[str], queue: str| None = None, executor_config: Any | None = None):
+    def _submit_job(self, key: TaskInstanceKey, command: List[str], queue: str| None = None, executor_config: Any | None = None):
         uc_client = self._get_unicore_client(executor_config=executor_config)
         job_descr = self._create_job_description(key, command, queue, executor_config)
         self.log.info("Generated job description")
@@ -70,7 +100,7 @@ class UnicoreExecutor(BaseExecutor):
     
     def _create_job_description(self, key: TaskInstanceKey, command: List[str], queue: str| None = None, executor_config: Any | None = {}) -> Dict[str,Any]:
         job_descr_dict : Dict[str, Any] = {}
-        # get usert config from executor_config
+        # get user config from executor_config
         user_added_env : Dict[str, str] = executor_config.get('Environment', None)
         user_added_params : Dict[str, str] = executor_config.get('Parameters', None)
         user_added_project : str = executor_config.get('Project', None)
@@ -107,7 +137,7 @@ class UnicoreExecutor(BaseExecutor):
             "AIRFLOW__CORE__EXECUTOR" : "LocalExecutor,airflow_unicore_integration.executors.unicore_executor.UnicoreExecutor"
         }
         job_descr_dict['User precommand'] = f"source {python_env}/bin/activate"
-        job_descr_dict['RunUserPrecommandOnLoginNode'] = 'false' # precommand is activating the python env, this can also be done on compute node right before running the job'
+        job_descr_dict['RunUserPrecommandOnLoginNode'] = 'false' # precommand is activating the python env, this can also be done on compute node right before running the job
         job_descr_dict["Imports"] = [dag_import]
         # add user defined options to description
         if user_added_env:
@@ -122,15 +152,32 @@ class UnicoreExecutor(BaseExecutor):
         return job_descr_dict
     
     def execute_async(self, key: TaskInstanceKey, command: List[str], queue: str | None = None, executor_config: Any | None = None) -> None:
-        # TODO only put task in submission queue, actually submit to unicore when sync is called by the heartbeat
-        self._submit_job(key, command, queue, executor_config)
+        # submit job to unicore and add to active_jobs dict for task state management 
+        job = self._submit_job(key, command, queue, executor_config)
+        self.active_jobs[key] = job
         #return super().execute_async(key, command, queue, executor_config)
-    
-    def get_task_log(self, ti: TaskInstance, try_number: int) -> tuple[list[str], list[str]]:
-        job = self.active_jobs.get(ti.key, None)
-        if not job:
-            return None
-        # return unicore task logs TODO maybe include stdout and stderr as they may contain airflow task run details
-        return (job.properties["log"], [])
-    
 
+    def get_task_log(self, ti: TaskInstance, try_number: int) -> tuple[list[str], list[str]]:
+        # get logfile from user home folder, path will be unique for taskrun
+        relative_path = f"dag_id={ti.dag_id}/run_id={ti.run_id}/task_id={ti.task_id}/attempt={try_number}.log" # relative to user home
+        uc = self._get_unicore_client()
+        home_storage = uc_client.Storage(uc.transport, f"{uc.resource_url}/storages/HOME")
+
+        logfile = home_storage.stat(relative_path).raw().read().decode("utf-8")
+
+        # only return task log, any additional logging info should be logged by the executor on job submission, success or failure
+        return (logfile.splitlines(),{})
+
+    def end(self, heartbeat_interval = 10) -> None:
+        # wait for current jobs to finish, dont start any new ones  
+        while True:
+            self.sync()
+            if not self.active_jobs:
+                break
+            time.sleep(heartbeat_interval)
+
+    def terminate(self):
+        # terminate all jobs
+        for task, job in list(self.active_jobs.items()):
+            job.abort()
+        self.end()
