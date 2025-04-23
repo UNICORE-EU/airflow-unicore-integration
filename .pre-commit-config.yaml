@@ -1,0 +1,61 @@
+fail_fast: false
+default_language_version:
+  python: python3
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: check-added-large-files
+        args: [ "--maxkb=500" ]
+        exclude: (__pycache__, *.pyc, *.pyo, *.iml, *.xml, *.cpy)
+      - id: check-ast
+      - id: check-builtin-literals
+      - id: check-case-conflict
+      - id: check-docstring-first
+      - id: check-json
+      - id: check-toml
+      - id: debug-statements
+      - id: end-of-file-fixer
+      - id: mixed-line-ending
+      - id: trailing-whitespace
+        exclude: (__pycache__, *.pyc, *.pyo, *.iml, *.xml, *.cpy)
+
+  - repo: https://github.com/asottile/pyupgrade
+    rev: v3.19.1
+    hooks:
+      - id: pyupgrade
+        args: [
+            "--py3-plus",
+            "--py36-plus",
+        ]
+
+  - repo: https://github.com/psf/black
+    rev: 25.1.0
+    hooks:
+      - id: black
+        args: ["--config", "pyproject.toml"]
+
+  - repo: https://github.com/pycqa/flake8
+    rev: 7.1.2
+    hooks:
+      - id: flake8
+        additional_dependencies:
+          - Flake8-pyproject
+          # See https://github.com/DmytroLitvinov/awesome-flake8-extensions
+          - flake8-blind-except
+          #- flake8-logging-format
+          - flake8_module_name
+          - pep8-naming
+
+  - repo: https://github.com/pycqa/isort
+    rev: 6.0.0
+    hooks:
+    - id: isort
+      args: [--profile, black, --force-single-line-imports]
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: 'v1.15.0'  # Use the sha / tag you want to point at
+    hooks:
+    -   id: mypy
+        additional_dependencies:
+        -   "pydantic==v2.10.6"
+        -   "sqlmodel==0.0.22"
