@@ -1,6 +1,7 @@
 [build-system]
 requires = [
-  "setuptools>=61.0"
+  "setuptools>=61.0",
+  "wheel"
   ]
 build-backend = "setuptools.build_meta"
 
@@ -12,7 +13,7 @@ authors = [
 ]
 description = "Running Unicore Jobs from airflow DAGs."
 readme = "README.rst"
-requires-python = ">=3.10"
+requires-python = ">=3.9"
 classifiers = [
     "Development Status :: 4 - Beta",
     "Framework :: Apache Airflow :: Provider",
@@ -25,7 +26,7 @@ classifiers = [
 
 dependencies = [
     "pyunicore>=1.0.0",
-    "apache-airflow==2.10.0"
+    "apache-airflow>=2.10.0"
 ]
 
 [project.urls]
@@ -34,6 +35,9 @@ Issues = "https://github.com/UNICORE-EU/airflow-unicore-integration/issues"
 
 [project.entry-points."apache_airflow_provider"]
 provider_info = "airflow_unicore_integration:get_provider_info"
+
+[project.entry-points.'airflow.policy'] 
+_ = 'airflow_unicore_integration.policies'
 
 [tool.pytest.ini_options]
 pythonpath = [
