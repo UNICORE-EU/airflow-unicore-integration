@@ -1,8 +1,8 @@
 from datetime import timedelta
 
+import pendulum
 from airflow import DAG
 from airflow.operators.bash import BashOperator
-import pendulum
 
 def_args = {
     "owner": "airflow",

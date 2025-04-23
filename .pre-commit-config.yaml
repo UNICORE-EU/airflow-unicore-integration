@@ -57,5 +57,6 @@ repos:
     hooks:
     -   id: mypy
         additional_dependencies:
-        -   "pydantic==v2.10.6"
-        -   "sqlmodel==0.0.22"
+        - "pydantic==v2.10.6"
+        - "sqlmodel==0.0.22"
+        - "types-requests"

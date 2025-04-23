@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from  pyunicore import client, credentials
-
 from airflow.hooks.base import BaseHook
+from pyunicore import client
+from pyunicore import credentials
 
 
 class UnicoreHook(BaseHook):
@@ -23,7 +23,11 @@ class UnicoreHook(BaseHook):
         super().__init__()
         self.uc_conn_id = uc_conn_id
 
-    def get_conn(self, overwrite_base_url: str | None = None, overwrite_credential : credentials.Credential | None = None) -> client.Client:
+    def get_conn(
+        self,
+        overwrite_base_url: str | None = None,
+        overwrite_credential: credentials.Credential | None = None,
+    ) -> client.Client:
         """Return a Unicore Client. base_url and credentials may be overwritten."""
         params = self.get_connection(self.uc_conn_id)
         base_url = params.host
@@ -35,12 +39,8 @@ class UnicoreHook(BaseHook):
         conn = client.Client(credential, base_url)
         return conn
 
-
     def test_connection(self) -> tuple[bool, str]:
         """Test the connection by sending an access_info request"""
-        try:
-            conn = self.get_conn()
-            conn.access_info()
-            return True, "Connection successfully tested"
-        except Exception as e:
-            return False, str(e)
+        conn = self.get_conn()
+        conn.access_info()
+        return True, "Connection successfully tested"

@@ -1,7 +1,8 @@
 from datetime import timedelta
 
-from airflow import DAG
 import pendulum
+from airflow import DAG
+
 import airflow_unicore_integration.operators.unicore_operators as uc_ops
 
 def_args = {
@@ -24,8 +25,13 @@ with DAG(
     schedule_interval=None,
     start_date=pendulum.yesterday(),
 ) as dag:
-    t1 = uc_ops.UnicoreDateOperator(name="task 1", task_id="1", credential_username=username, credential_password=password, base_url=base_url)
+    t1 = uc_ops.UnicoreDateOperator(
+        name="task 1",
+        task_id="1",
+        credential_username=username,
+        credential_password=password,
+        base_url=base_url,
+    )
     t2 = uc_ops.UnicoreDateOperator(name="task 2", task_id="2")
 
     t1 >> t2
-

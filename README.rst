@@ -4,7 +4,7 @@ Unicore Airflow Integration
 
 This project integrates `UNICORE <https://github.com/UNICORE-EU>`_ and `Apache Airflow <https://airflow.apache.org/>`_.
 UNICORE is a software suite that, among other functions, provides seamless access to high-performance compute and data resources.
-Airflow is a platform to programmatically author, schedule and monitor workflows. 
+Airflow is a platform to programmatically author, schedule and monitor workflows.
 
 In the current state, this projects provides a set of airflow `operators <https://airflow.apache.org/docs/apache-airflow/stable/core-concepts/operators.html>`_, which can be used as part of airflow workflows to submit jobs to Unicore.
 
@@ -35,7 +35,7 @@ exports                 List(exports)           None                            
 For imports and exports go `here <https://unicore-docs.readthedocs.io/en/latest/user-docs/rest-api/job-description/index.html#importing-files-into-the-job-workspace>`_ for details.
 
 
-The ``UnicoreGenericOperator`` supports the following additional parameters: 
+The ``UnicoreGenericOperator`` supports the following additional parameters:
 
 ======================= ======================= =========================================== ====================
 parameter name          type                    default                                     description
@@ -86,7 +86,7 @@ Behaviour on Errors and Success
 The Unicore Operators do not do a lot of error and exception handling, and mostly just forward any problems to be handled by airflow.
 All of the Unicore logic is handled by the `pyunicore library <https://github.com/HumanBrainProject/pyunicore>`_.
 
-While some validation of the resulting Unicore job description is done automatically, it may still be possible to build an invalid job description with the operators. 
+While some validation of the resulting Unicore job description is done automatically, it may still be possible to build an invalid job description with the operators.
 This may lead to a submission failure with Unicore. In this case, an exception is thrown to be handled by airflow.
 
 
@@ -116,10 +116,10 @@ There are some example DAGs in this repository under ``project-dir/dags``.
 - ``unicore-test-2.py`` has some basic examples for the generic operator.
 - ``unicore-test-3.py`` also includes script-operator examples.
 - ``unicore-test-4.py`` has some examples with more arguments.
-- ``unicore-test-bss.py`` shows how bss submission can be done (very simple example). 
+- ``unicore-test-bss.py`` shows how bss submission can be done (very simple example).
 - ``unicore-test-credentials.py`` demonstrates that not only the credentials from the airflow connections backend can be used, but they can also be provided in the constructor of the o`perator.
 - ``unicore-test-import-export.py`` gives shprt examples for the imports and exports usage.
- 
+
 
 -----------------
 Setup testing env

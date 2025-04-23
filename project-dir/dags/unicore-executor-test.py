@@ -1,8 +1,8 @@
 from datetime import timedelta
 
+import pendulum
 from airflow import DAG
 from airflow.operators.bash import BashOperator
-import pendulum
 
 def_args = {
     "owner": "airflow",
@@ -20,9 +20,12 @@ with DAG(
     schedule_interval=None,
     start_date=pendulum.yesterday(),
 ) as dag:
-    t1 = BashOperator(task_id="print_date",executor="UnicoreExecutor", bash_command="date")
+    t1 = BashOperator(task_id="print_date", executor="UnicoreExecutor", bash_command="date")
     t2 = BashOperator(task_id="do_noting", bash_command="sleep 1")
     t4 = BashOperator(task_id="check_curl", bash_command="curl -v https://google.com")
-    t3 = BashOperator(task_id="check_docker", bash_command="curl -v --unix-socket /var/run/docker.sock http:/v1.35/containers/json")
+    t3 = BashOperator(
+        task_id="check_docker",
+        bash_command="curl -v --unix-socket /var/run/docker.sock http:/v1.35/containers/json",
+    )
 
     t1 >> t2

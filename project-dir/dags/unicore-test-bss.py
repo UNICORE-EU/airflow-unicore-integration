@@ -1,7 +1,8 @@
 from datetime import timedelta
 
-from airflow import DAG
 import pendulum
+from airflow import DAG
+
 import airflow_unicore_integration.operators.unicore_operators as uc_ops
 
 def_args = {
@@ -26,8 +27,17 @@ with DAG(
     schedule_interval=None,
     start_date=pendulum.yesterday(),
 ) as dag:
-    task1 = uc_ops.UnicoreBSSOperator(name="bss test", task_id="1", bss_file_content=bss_file, executable="echo This is the executable")
-    task2 = uc_ops.UnicoreBSSOperator(name="bss test 2", task_id="2", bss_file_content=bss_file, executable="echo This is the executable")
+    task1 = uc_ops.UnicoreBSSOperator(
+        name="bss test",
+        task_id="1",
+        bss_file_content=bss_file,
+        executable="echo This is the executable",
+    )
+    task2 = uc_ops.UnicoreBSSOperator(
+        name="bss test 2",
+        task_id="2",
+        bss_file_content=bss_file,
+        executable="echo This is the executable",
+    )
 
     task1 >> task2
-

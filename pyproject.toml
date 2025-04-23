@@ -51,9 +51,13 @@ line-length = 100
 max-line-length = 100
 ignore = [
  "N999",
- "E501"
+ "E501",
+ "W503"
 ]
 per-file-ignores = [
     "__init__.py:F401,E501",
     "_version.py:E203",
 ]
+
+[tool.mypy]
+ignore_missing_imports=true
