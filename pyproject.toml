@@ -14,11 +14,11 @@ authors = [
 description = "Running Unicore Jobs from airflow DAGs."
 readme = "README.rst"
 requires-python = ">=3.9"
+license = "BSD-3-Clause"
 classifiers = [
     "Development Status :: 4 - Beta",
     "Framework :: Apache Airflow :: Provider",
     "Programming Language :: Python :: 3",
-    "License :: OSI Approved :: BSD License",
     "Operating System :: OS Independent",
 ]
 
