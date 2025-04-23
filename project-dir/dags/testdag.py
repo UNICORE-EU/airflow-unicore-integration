@@ -21,6 +21,6 @@ with DAG(
     start_date=pendulum.yesterday(),
 ) as dag:
     t1 = BashOperator(task_id="print_date", bash_command="date")
-    t2 = BashOperator(task_id="do_noting", bash_command="sleep 1")
+    t2 = BashOperator(task_id="do_nothing", bash_command="sleep 1")
 
     t1 >> t2
