@@ -1,3 +1,4 @@
 pyunicore>=1.0.0
-apache-airflow>=2.10.0
+apache-airflow>=3.0.0
 build
+apache-airflow-providers-edge3>=1.0.0

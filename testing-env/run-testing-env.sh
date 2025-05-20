@@ -22,7 +22,7 @@ case "$1" in
     docker compose -f $COMPOSE_FILE --project-directory $PROJECT_DIR --profile flower start
     ;;
   "logs")
-    docker compose -f $COMPOSE_FILE --project-directory $PROJECT_DIR --profile flower logs
+    docker compose -f $COMPOSE_FILE --project-directory $PROJECT_DIR --profile flower logs -f
     ;;
   "init")
     mkdir -p $PROJECT_DIR/config

@@ -7,4 +7,4 @@ RUN pip --version && python -m pip install --upgrade pip
 RUN pip install pyunicore
 
 ADD /dist/airflow_unicore_integration-0.1.0-py3-none-any.whl /airflow_unicore_integration-0.1.0-py3-none-any.whl
-RUN pip install /airflow_unicore_integration-0.1.0-py3-none-any.whl
+RUN pip install /airflow_unicore_integration-0.1.0-py3-none-any.whl apache-airflow==3.0.0 apache-airflow-providers-edge3

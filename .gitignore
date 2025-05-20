@@ -3,6 +3,7 @@ project-dir/config
 project-dir/logs
 project-dir/plugins
 **venv**
+airflow.sh
 
 # python
 env
