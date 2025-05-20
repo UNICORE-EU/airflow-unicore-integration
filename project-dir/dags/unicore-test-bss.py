@@ -24,7 +24,6 @@ with DAG(
     "unicore-test-bss",
     default_args=def_args,
     description="simple bss testing dag for unicore",
-    schedule_interval=None,
     start_date=pendulum.yesterday(),
 ) as dag:
     task1 = uc_ops.UnicoreBSSOperator(

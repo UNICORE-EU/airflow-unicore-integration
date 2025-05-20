@@ -17,7 +17,6 @@ with DAG(
     "testdag",
     default_args=def_args,
     description="simple testing dag",
-    schedule_interval=None,
     start_date=pendulum.yesterday(),
 ) as dag:
     t1 = BashOperator(task_id="print_date", bash_command="date")

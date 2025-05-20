@@ -18,7 +18,6 @@ with DAG(
     "unicore-test-import-export",
     default_args=def_args,
     description="simple testing dag for imports and exports in unicore",
-    schedule_interval=None,
     start_date=pendulum.yesterday(),
 ) as dag:
     imports = [{"From": "http://date.jsontest.com/", "To": "date.json"}]

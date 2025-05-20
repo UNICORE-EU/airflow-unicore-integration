@@ -14,16 +14,29 @@ def_args = {
 }
 
 with DAG(
-    "unicore-executor-test",
+    "edge-executor-test",
     default_args=def_args,
     description="executor testing dag",
     start_date=pendulum.yesterday(),
 ) as dag:
-    t1 = BashOperator(task_id="print_date", executor="UnicoreExecutor", bash_command="date")
-    t2 = BashOperator(task_id="do_noting", bash_command="sleep 1")
-    t4 = BashOperator(task_id="check_curl", bash_command="curl -v https://google.com")
+    t1 = BashOperator(
+        task_id="print_date",
+        executor="airflow.providers.edge3.executors.EdgeExecutor",
+        bash_command="date",
+    )
+    t2 = BashOperator(
+        task_id="do_noting",
+        executor="airflow.providers.edge3.executors.EdgeExecutor",
+        bash_command="sleep 1",
+    )
+    t4 = BashOperator(
+        task_id="check_curl",
+        executor="airflow.providers.edge3.executors.EdgeExecutor",
+        bash_command="curl -v https://google.com",
+    )
     t3 = BashOperator(
         task_id="check_docker",
+        executor="airflow.providers.edge3.executors.EdgeExecutor",
         bash_command="curl -v --unix-socket /var/run/docker.sock http:/v1.35/containers/json",
     )
 

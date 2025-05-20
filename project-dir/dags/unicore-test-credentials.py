@@ -22,7 +22,6 @@ with DAG(
     "unicore-test-credentials",
     default_args=def_args,
     description="simple credentials testing dag for unicore",
-    schedule_interval=None,
     start_date=pendulum.yesterday(),
 ) as dag:
     t1 = uc_ops.UnicoreDateOperator(

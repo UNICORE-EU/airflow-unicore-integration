@@ -18,7 +18,6 @@ with DAG(
     "unicore-test-pre-post-command",
     default_args=def_args,
     description="testing dag for unicore pre and post commands",
-    schedule_interval=None,
     start_date=pendulum.yesterday(),
 ) as dag:
     t1 = uc_ops.UnicoreGenericOperator(

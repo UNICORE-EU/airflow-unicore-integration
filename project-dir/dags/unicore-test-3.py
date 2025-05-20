@@ -18,7 +18,6 @@ with DAG(
     "unicore-test-3",
     default_args=def_args,
     description="yet another simple testing dag for unicore",
-    schedule_interval=None,
     start_date=pendulum.yesterday(),
 ) as dag:
     t1 = uc_ops.UnicoreExecutableOperator(
