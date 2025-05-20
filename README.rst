@@ -7,7 +7,7 @@ UNICORE is a software suite that, among other functions, provides seamless acces
 Airflow is a platform to programmatically author, schedule and monitor workflows.
 
 In the current state, this projects provides a set of airflow `operators <https://airflow.apache.org/docs/apache-airflow/stable/core-concepts/operators.html>`_, which can be used as part of airflow workflows to submit jobs to Unicore.
-
+The UnicoreExecutor does not support airflow 3 yet and only supports airflow 2.X as an experimental version with a lot of manual server-side setup. An update for airflow3 using the new ExecutionAPI is currently being worked on.
 
 ---------------------------
 Using the Unicore Operators
@@ -117,8 +117,8 @@ There are some example DAGs in this repository under ``project-dir/dags``.
 - ``unicore-test-3.py`` also includes script-operator examples.
 - ``unicore-test-4.py`` has some examples with more arguments.
 - ``unicore-test-bss.py`` shows how bss submission can be done (very simple example).
-- ``unicore-test-credentials.py`` demonstrates that not only the credentials from the airflow connections backend can be used, but they can also be provided in the constructor of the o`perator.
-- ``unicore-test-import-export.py`` gives shprt examples for the imports and exports usage.
+- ``unicore-test-credentials.py`` demonstrates that not only the credentials from the airflow connections backend can be used, but they can also be provided in the constructor of the operator.
+- ``unicore-test-import-export.py`` gives short examples for the imports and exports usage.
 
 
 -----------------
