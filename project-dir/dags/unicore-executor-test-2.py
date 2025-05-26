@@ -2,6 +2,8 @@ import pendulum
 from airflow.decorators import dag
 from airflow.decorators import task
 
+from airflow_unicore_integration.hooks.unicore_hooks import UnicoreHook
+
 
 @dag(
     start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
@@ -12,9 +14,13 @@ def unicore_executor_test_2():
     @task()
     def produce_value():
         print("Hello World! I produced some data to be returned!")
+        print(f"Testing Unicorehook with default connection: '{UnicoreHook().get_conn()}'")
         return {"1": "A", "2": "B"}
 
-    @task(multiple_outputs=True, executor="UnicoreExecutor")
+    @task(
+        multiple_outputs=True,
+        executor="airflow_unicore_integration.executors.unicore_executor.UnicoreExecutor",
+    )
     def transform_values(data_dict: dict):
         values_as_tuple = (data_dict["1"], data_dict["2"])
 
