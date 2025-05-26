@@ -5,14 +5,12 @@ RUN apt-get update -y \
     && apt-get install -y python3 python3-pip python3.10-venv
 
 
-RUN python3 -m pip install apache-airflow>=2.10.0 psycopg2-binary apache-airflow-providers-docker
+ADD /dist/airflow_unicore_integration-0.1.0-py3-none-any.whl /airflow_unicore_integration-0.1.0-py3-none-any.whl
+
+RUN pip install /airflow_unicore_integration-0.1.0-py3-none-any.whl apache-airflow-providers-edge3 apache-airflow-task-sdk==1.0.1 apache-airflow>=3.0.1 psycopg2-binary apache-airflow-providers-docker
 
 RUN python3 -m venv /opt/venv
-RUN /opt/venv/bin/pip install apache-airflow>=2.10.0 psycopg2-binary apache-airflow-providers-docker
+RUN /opt/venv/bin/pip install /airflow_unicore_integration-0.1.0-py3-none-any.whl apache-airflow-providers-edge3 apache-airflow-task-sdk==1.0.1 apache-airflow>=3.0.1 psycopg2-binary apache-airflow-providers-docker
 
-RUN curl -fsSL https://get.docker.com -o /get-docker.sh
-RUN sh ./get-docker.sh --dry-run
-
-
-ADD /dist/airflow_unicore_integration-0.1.0-py3-none-any.whl /airflow_unicore_integration-0.1.0-py3-none-any.whl
-RUN pip install /airflow_unicore_integration-0.1.0-py3-none-any.whl
+#RUN curl -fsSL https://get.docker.com -o /get-docker.sh
+#RUN sh ./get-docker.sh --dry-run
