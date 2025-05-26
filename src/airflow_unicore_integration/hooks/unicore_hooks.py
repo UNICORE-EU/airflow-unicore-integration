@@ -29,6 +29,9 @@ class UnicoreHook(BaseHook):
         overwrite_credential: credentials.Credential | None = None,
     ) -> client.Client:
         """Return a Unicore Client. base_url and credentials may be overwritten."""
+        self.log.debug(
+            f"Gettig connection with id '{self.uc_conn_id}' from secrets backend. Will be modified with user input for UNICORE."
+        )
         params = self.get_connection(self.uc_conn_id)
         base_url = params.host
         credential = credentials.UsernamePassword(params.login, params.password)
