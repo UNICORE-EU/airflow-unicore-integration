@@ -13,7 +13,7 @@ UNICORE is a software suite that, among other functions, provides seamless acces
 Airflow is a platform to programmatically author, schedule and monitor workflows.
 
 In the current state, this projects provides a set of airflow `operators <https://airflow.apache.org/docs/apache-airflow/stable/core-concepts/operators.html>`_, which can be used as part of airflow workflows to submit jobs to Unicore.
-The UnicoreExecutor does not support airflow 3 yet and only supports airflow 2.X as an experimental version with a lot of manual server-side setup. An update for airflow3 using the new ExecutionAPI is currently being worked on.
+The UnicoreExecutor only offers experimental support for airflow 3 so far. Further support is currently being worked on.
 
 ---------------------------
 Using the Unicore Operators
