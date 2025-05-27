@@ -2,6 +2,12 @@
 Unicore Airflow Integration
 ===========================
 
+
+|Generic badge|
+
+.. |Generic badge| image:: https://github.com/UNICORE-EU/airflow-unicore-integration/actions/workflows/publish-to-pypi.yml/badge.svg 
+   :target: https://github.com/UNICORE-EU/airflow-unicore-integration/actions/workflows/publish-to-pypi.yml
+
 This project integrates `UNICORE <https://github.com/UNICORE-EU>`_ and `Apache Airflow <https://airflow.apache.org/>`_.
 UNICORE is a software suite that, among other functions, provides seamless access to high-performance compute and data resources.
 Airflow is a platform to programmatically author, schedule and monitor workflows.
