@@ -49,7 +49,7 @@ class NaiveJobDescriptionGenerator(JobDescriptionGenerator):
         dag_rel_path = str(workload.dag_rel_path)
         if dag_rel_path.startswith("DAG_FOLDER"):
             dag_rel_path = dag_rel_path[10:]
-        local_dag_path = conf.get("core", "DAGS_FOLDER") + "/" + dag_rel_path
+        # local_dag_path = conf.get("core", "DAGS_FOLDER") + "/" + dag_rel_path
         base_url = conf.get("api", "base_url", fallback="/")
         default_execution_api_server = f"{base_url.rstrip('/')}/execution/"
         server = conf.get("core", "execution_api_server_url", fallback=default_execution_api_server)
@@ -60,9 +60,9 @@ class NaiveJobDescriptionGenerator(JobDescriptionGenerator):
         else:
             python_env = conf.get("unicore.executor", "DEFAULT_ENV")
         # prepare dag file to be uploaded via unicore
-        dag_file = open(local_dag_path)
-        dag_content = dag_file.readlines()
-        dag_import = {"To": dag_rel_path, "Data": dag_content}
+        # dag_file = open(local_dag_path)
+        # dag_content = dag_file.readlines()
+        # dag_import = {"To": dag_rel_path, "Data": dag_content}
         worker_script_import = {
             "To": "run_task_via_supervisor.py",
             "From": "https://gist.githubusercontent.com/cboettcher/3f1101a1d1b67e7944d17c02ecd69930/raw/6da9ec16ba598ddda9cf288900498fab5e226788/run_task_via_supervisor.py",
@@ -87,7 +87,7 @@ class NaiveJobDescriptionGenerator(JobDescriptionGenerator):
         job_descr_dict["RunUserPrecommandOnLoginNode"] = (
             "false"  # precommand is activating the python env, this can also be done on compute node right before running the job
         )
-        job_descr_dict["Imports"] = [dag_import, worker_script_import]
+        job_descr_dict["Imports"] = [worker_script_import]
         # add user defined options to description
         if user_added_env:
             job_descr_dict["Environment"].update(user_added_env)
