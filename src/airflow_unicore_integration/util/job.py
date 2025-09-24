@@ -52,7 +52,9 @@ class NaiveJobDescriptionGenerator(JobDescriptionGenerator):
         # local_dag_path = conf.get("core", "DAGS_FOLDER") + "/" + dag_rel_path
         base_url = conf.get("api", "base_url", fallback="/")
         default_execution_api_server = f"{base_url.rstrip('/')}/execution/"
-        server = conf.get("core", "execution_api_server_url", fallback=default_execution_api_server)
+        server = conf.get(
+            "unicore.executor", "execution_api_server_url", fallback=default_execution_api_server
+        )
 
         # check which python virtualenv to use
         if user_defined_python_env:
@@ -65,7 +67,7 @@ class NaiveJobDescriptionGenerator(JobDescriptionGenerator):
         # dag_import = {"To": dag_rel_path, "Data": dag_content}
         worker_script_import = {
             "To": "run_task_via_supervisor.py",
-            "From": "https://gist.githubusercontent.com/cboettcher/3f1101a1d1b67e7944d17c02ecd69930/raw/6da9ec16ba598ddda9cf288900498fab5e226788/run_task_via_supervisor.py",
+            "From": "https://gist.githubusercontent.com/cboettcher/3f1101a1d1b67e7944d17c02ecd69930/raw/1d90bf38199d8c0adf47a79c8840c3e3ddf57462/run_task_via_supervisor.py",
         }
         # start filling the actual job description
         job_descr_dict["Name"] = f"{key.dag_id} - {key.task_id} - {key.run_id} - {key.try_number}"
