@@ -1,3 +1,4 @@
+import os
 from typing import Any
 from typing import Dict
 
@@ -83,11 +84,18 @@ class NaiveJobDescriptionGenerator(JobDescriptionGenerator):
             "AIRFLOW__CORE__DAGS_FOLDER": "./",
             "AIRFLOW__LOGGING__LOGGING_LEVEL": "DEBUG",
             "AIRFLOW__CORE__EXECUTOR": "LocalExecutor,airflow_unicore_integration.executors.unicore_executor.UnicoreExecutor",
+            "AIRFLOW__DAG_PROCESSOR__DAG_BUNDLE_CONFIG_LIST": os.environ.get(
+                "AIRFLOW__DAG_PROCESSOR__DAG_BUNDLE_CONFIG_LIST", ""
+            ),
         }
+        # insert connection details that are provided via env vars to get bundles
+        for env_key in os.environ.keys():
+            if env_key.startswith("AIRFLOW_CONN_"):
+                job_descr_dict["Environment"][env_key] = os.environ[env_key]
         user_added_pre_commands.append(f"source {python_env}/bin/activate")
         job_descr_dict["User precommand"] = ";".join(user_added_pre_commands)
         job_descr_dict["RunUserPrecommandOnLoginNode"] = (
-            "false"  # precommand is activating the python env, this can also be done on compute node right before running the job
+            "false"  # precommand includes activating the python env, this should be done on compute node right before running the job
         )
         job_descr_dict["Imports"] = [worker_script_import]
         # add user defined options to description
