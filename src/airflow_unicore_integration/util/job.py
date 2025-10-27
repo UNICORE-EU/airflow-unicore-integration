@@ -1,4 +1,3 @@
-import json
 import os
 from typing import Any
 from typing import Dict
@@ -64,7 +63,7 @@ class NaiveJobDescriptionGenerator(JobDescriptionGenerator):
         else:
             python_env = conf.get("unicore.executor", "DEFAULT_ENV")
         # prepare dag file to be uploaded via unicore
-        # dag_file = open(local_dag_path)
+        # dag_file = open("/tmp/test")
         # dag_content = dag_file.readlines()
         # dag_import = {"To": dag_rel_path, "Data": dag_content}
         worker_script_import = {
@@ -85,22 +84,28 @@ class NaiveJobDescriptionGenerator(JobDescriptionGenerator):
             "AIRFLOW__CORE__DAGS_FOLDER": "./",
             "AIRFLOW__LOGGING__LOGGING_LEVEL": "DEBUG",
             "AIRFLOW__CORE__EXECUTOR": "LocalExecutor,airflow_unicore_integration.executors.unicore_executor.UnicoreExecutor",
-            "AIRFLOW__DAG_PROCESSOR__DAG_BUNDLE_CONFIG_LIST": json.dumps(
-                os.environ.get("AIRFLOW__DAG_PROCESSOR__DAG_BUNDLE_CONFIG_LIST", "")
-            ).replace("\\n", ""),
         }
+
+        # build filecontent string for importing in the job | this is needed to avoid confusing nested quotes and trying to escape them properly when using unicore env vars directly
+        env_file_content: list[str] = [
+            f"export AIRFLOW__DAG_PROCESSOR__DAG_BUNDLE_CONFIG_LIST='{os.environ.get("AIRFLOW__DAG_PROCESSOR__DAG_BUNDLE_CONFIG_LIST", "")}'"
+        ]
+
         # insert connection details that are provided via env vars to get bundles
         for env_key in os.environ.keys():
             if env_key.startswith("AIRFLOW_CONN_"):
-                job_descr_dict["Environment"][env_key] = json.dumps(os.environ[env_key]).replace(
-                    "\\n", ""
-                )
-        user_added_pre_commands.append(f"source {python_env}/bin/activate")
+                env_file_content.append(f"export {env_key}='{os.environ[env_key]}'")
+
+        airflow_env_import = {"To": "airflow_config.env", "Data": env_file_content}
+
+        user_added_pre_commands.append(
+            f"source airflow_config.env && source {python_env}/bin/activate"
+        )
         job_descr_dict["User precommand"] = ";".join(user_added_pre_commands)
         job_descr_dict["RunUserPrecommandOnLoginNode"] = (
             "false"  # precommand includes activating the python env, this should be done on compute node right before running the job
         )
-        job_descr_dict["Imports"] = [worker_script_import]
+        job_descr_dict["Imports"] = [worker_script_import, airflow_env_import]
         # add user defined options to description
         if user_added_env:
             job_descr_dict["Environment"].update(user_added_env)
