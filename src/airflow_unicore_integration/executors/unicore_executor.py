@@ -39,6 +39,12 @@ STATE_MAPPINGS: Dict[uc_client.JobStatus, TaskInstanceState] = {
 
 class UnicoreExecutor(BaseExecutor):
 
+    EXECUTOR_CONFIG_UNICORE_CONN_KEY = (
+        "unicore_connection_id"  # alternative connection id for the Unicore connection to use
+    )
+    EXECUTOR_CONFIG_UNICORE_SITE_KEY = "unicore_site"  # alternative Unicore site to run at, only required if different than connection default
+    EXECUTOR_CONFIG_UNICORE_CREDENTIAL_KEY = "unicore_credential"  # alternative unicore credential to use for the job, only required if different than connection default
+
     def start(self):
         self.active_jobs: Dict[TaskInstanceKey, uc_client.Job] = {}
         self.uc_conn = unicore_hooks.UnicoreHook().get_conn()
@@ -67,9 +73,7 @@ class UnicoreExecutor(BaseExecutor):
         return []
 
     def _get_unicore_client(self, executor_config: dict | None = {}):
-        # TODO fix this only temporary solution
         return self.uc_conn
-        # END TODO fix this
         # include client desires from executor_config
         unicore_conn_id = executor_config.get(  # type: ignore
             UnicoreExecutor.EXECUTOR_CONFIG_UNICORE_CONN_KEY,
