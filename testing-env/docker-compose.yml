@@ -53,7 +53,7 @@ x-airflow-common:
   # build: .
   environment:
     &airflow-common-env
-    AIRFLOW__CORE__EXECUTOR: CeleryExecutor,airflow_unicore_integration.executors.unicore_executor.UnicoreExecutor,airflow.providers.edge3.executors.EdgeExecutor
+    AIRFLOW__CORE__EXECUTOR: CeleryExecutor,airflow_unicore_integration.executors.unicore_executor.UnicoreExecutor
     AIRFLOW__CORE__AUTH_MANAGER: airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager
     AIRFLOW__CORE__TEST_CONNECTIONS: 'true'
     AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres/airflow
@@ -62,15 +62,41 @@ x-airflow-common:
     AIRFLOW__CORE__FERNET_KEY: '7HwsAd9w8lufPXKMJSUEsVWLIGHnK9c2jRhPMS1KnN0='
     AIRFLOW__WEBSERVER__SECRET_KEY: '7HwsAd9w8lufPXKMJSUEsVWLIGHnK9c2jRhPMS1KnN0='
     AIRFLOW__API_AUTH__JWT_SECRET: '7HwsAd9w8lufPXKMJSUEsVWLIGHnK9c2jRhPMS1KnN0='
+    AIRFLOW__API__BASE_URL: "http://localhost:8080/"
     AIRFLOW__CORE__INTERNAL_API_SECRET_KEY: '7HwsAd9w8lufPXKMJSUEsVWLIGHnK9c2jRhPMS1KnN0='
     AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: 'true'
     AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
     AIRFLOW__CORE__EXECUTION_API_SERVER_URL: 'http://airflow-apiserver:8080/execution/'
-    AIRFLOW__UNICORE_EXECUTOR__UNICORE_CONN_ID: uc_default
+    AIRFLOW__UNICORE_EXECUTOR__EXECUTION_API_SERVER_URL: 'http://airflow-apiserver:8080/execution/'
+    AIRFLOW__UNICORE_EXECUTOR__DEFAULT_USER: 'demouser'
+    AIRFLOW__UNICORE_EXECUTOR__DEFAULT_PASS: 'test123'
+    AIRFLOW__UNICORE_EXECUTOR__DEFAULT_URL: 'https://unicore:8080/DEMO-SITE/rest/core'
     AIRFLOW__UNICORE_EXECUTOR__DEFAULT_ENV: /opt/venv
     AIRFLOW__EDGE__API_ENABLED: 'true'
     AIRFLOW__EDGE__API_URL: 'https://airflow-apiserver:8080/edge_worker/v1/rpcapi'
     AIRFLOW__LOGGING__LOGGING_LEVEL: 'DEBUG'
+
+    AIRFLOW__DAG_PROCESSOR__DAG_BUNDLE_CONFIG_LIST: |
+      [
+        {
+          "name": "airflow-unicore-development-dags-bundle",
+          "classpath": "airflow.providers.git.bundles.git.GitDagBundle",
+          "kwargs": {
+            "git_conn_id": "airflow_unicore_development_dags_conn",
+            "subdir": "dags",
+            "tracking_ref": "main",
+            "refresh_interval": 7
+          }
+        }
+      ]
+    AIRFLOW_CONN_AIRFLOW_UNICORE_DEVELOPMENT_DAGS_CONN: |
+      {
+        "conn_type": "git",
+        "login": "airflow-git-sync",
+        "password": "QB5lCr68wt5CXAtiCZEnN286MQp1OjRhMgk.01.0z0lakizk",
+        "host": "https://gitlab.jsc.fz-juelich.de/hippo/airflow-unicore-development-dags.git"
+      }
+
     # yamllint disable rule:line-length
     # Use simple http server on scheduler for health checks
     # See https://airflow.apache.org/docs/apache-airflow/stable/administration-and-deployment/logging-monitoring/check-health.html#scheduler-health-check-server

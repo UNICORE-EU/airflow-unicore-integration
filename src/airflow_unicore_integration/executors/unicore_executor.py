@@ -19,8 +19,8 @@ from airflow.executors.workloads import All
 from airflow.executors.workloads import ExecuteTask
 from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.utils.state import TaskInstanceState
-
-from airflow_unicore_integration.hooks import unicore_hooks
+from pyunicore import client
+from pyunicore import credentials
 
 from ..util.job import JobDescriptionGenerator
 from ..util.job import NaiveJobDescriptionGenerator
@@ -47,7 +47,6 @@ class UnicoreExecutor(BaseExecutor):
 
     def start(self):
         self.active_jobs: Dict[TaskInstanceKey, uc_client.Job] = {}
-        self.uc_conn = unicore_hooks.UnicoreHook().get_conn()
         # TODO get job description generator class and init params from config
         self.job_descr_generator: JobDescriptionGenerator = NaiveJobDescriptionGenerator()
 
@@ -73,23 +72,26 @@ class UnicoreExecutor(BaseExecutor):
         return []
 
     def _get_unicore_client(self, executor_config: dict | None = {}):
-        return self.uc_conn
-        # include client desires from executor_config
-        unicore_conn_id = executor_config.get(  # type: ignore
-            UnicoreExecutor.EXECUTOR_CONFIG_UNICORE_CONN_KEY,
-            conf.get("unicore.executor", "UNICORE_CONN_ID"),
-        )  # task can provide a different unicore connection to use, else airflow-wide default is used
-        self.log.info(f"Using base unicore connection with id '{unicore_conn_id}'")
-        hook = unicore_hooks.UnicoreHook(uc_conn_id=unicore_conn_id)
-        unicore_site = executor_config.get(  # type: ignore
+        overwrite_unicore_site = executor_config.get(  # type: ignore
             UnicoreExecutor.EXECUTOR_CONFIG_UNICORE_SITE_KEY, None
         )  # task can provide a different site to run at, else default from connetion is used
-        unicore_credential = executor_config.get(  # type: ignore
+        overwrite_unicore_credential = executor_config.get(  # type: ignore
             UnicoreExecutor.EXECUTOR_CONFIG_UNICORE_CREDENTIAL_KEY, None
         )  # task can provide a different credential to use, else default from connection is used
-        return hook.get_conn(
-            overwrite_base_url=unicore_site, overwrite_credential=unicore_credential
+        user = conf.get("unicore.executor", "DEFAULT_USER", fallback="demouser")
+        password = conf.get("unicore.executor", "DEFAULT_PASS", fallback="test123")
+        base_url = conf.get(
+            "unicore.executor", "DEFAULT_URL", fallback="http://localhost:8080/DEMO-SITE/rest/core"
         )
+        credential = credentials.UsernamePassword(user, password)
+        if overwrite_unicore_site is not None:
+            base_url = overwrite_unicore_site
+        if overwrite_unicore_credential is not None:
+            credential = overwrite_unicore_credential
+        if not base_url:
+            raise TypeError()
+        conn = client.Client(credential, base_url)
+        return conn
 
     def _submit_job(self, workload: ExecuteTask):
         uc_client = self._get_unicore_client(executor_config=workload.ti.executor_config)

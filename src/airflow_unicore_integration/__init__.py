@@ -9,4 +9,7 @@ def get_provider_info():
                 "hook-class-name": "airflow_unicore_integration.hooks.unicore_hooks.UnicoreHook",
             }
         ],
+        "executors": [
+            "airflow_unicore_integration.executors.unicore_executor.UnicoreExecutor",
+        ],
     }
