@@ -2,8 +2,15 @@
 project-dir/config
 project-dir/logs
 project-dir/plugins
+project-dir/tmp_dags
 **venv**
 airflow.sh
+uc_default.json
+.env
+edge-config.env
+helper_functions.py
+task-executor.docker
+test-task-execution.sh
 
 # python
 env
