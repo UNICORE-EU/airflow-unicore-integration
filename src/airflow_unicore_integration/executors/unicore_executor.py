@@ -20,7 +20,7 @@ from airflow.executors.workloads import ExecuteTask
 from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.utils.state import TaskInstanceState
 from pyunicore import client
-from pyunicore import credentials
+from pyunicore.credentials import create_credential
 
 from ..util.job import JobDescriptionGenerator
 from ..util.job import NaiveJobDescriptionGenerator
@@ -78,12 +78,11 @@ class UnicoreExecutor(BaseExecutor):
         overwrite_unicore_credential = executor_config.get(  # type: ignore
             UnicoreExecutor.EXECUTOR_CONFIG_UNICORE_CREDENTIAL_KEY, None
         )  # task can provide a different credential to use, else default from connection is used
-        user = conf.get("unicore.executor", "DEFAULT_USER", fallback="demouser")
-        password = conf.get("unicore.executor", "DEFAULT_PASS", fallback="test123")
+        token = conf.get("unicore.executor", "AUTH_TOKEN", fallback="")
         base_url = conf.get(
             "unicore.executor", "DEFAULT_URL", fallback="http://localhost:8080/DEMO-SITE/rest/core"
         )
-        credential = credentials.UsernamePassword(user, password)
+        credential = create_credential(token=token)
         if overwrite_unicore_site is not None:
             base_url = overwrite_unicore_site
         if overwrite_unicore_credential is not None:
