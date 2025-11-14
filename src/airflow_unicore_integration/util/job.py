@@ -34,10 +34,13 @@ class JobDescriptionGenerator:
     def create_job_description(self, workload: ExecuteTask) -> Dict[str, Any]:
         raise NotImplementedError()
 
+    def get_job_name(self, key: TaskInstanceKey) -> str:
+        return f"{key.dag_id} - {key.task_id} - {key.run_id} - {key.try_number}"
+
 
 class NaiveJobDescriptionGenerator(JobDescriptionGenerator):
     """
-    This class generates a naive unicore job, that expects there to be a working python env containign airflow and any other required dependencies on the executing system.
+    This class generates a naive unicore job, that expects there to be a working python env containing airflow and any other required dependencies on the executing system.
     """
 
     GIT_DAG_BUNDLE_CLASSPATH = "airflow.providers.git.bundles.git.GitDagBundle"
@@ -84,7 +87,7 @@ class NaiveJobDescriptionGenerator(JobDescriptionGenerator):
             "Data": LAUNCH_SCRIPT_CONTENT_STR,
         }
         # start filling the actual job description
-        job_descr_dict["Name"] = f"{key.dag_id} - {key.task_id} - {key.run_id} - {key.try_number}"
+        job_descr_dict["Name"] = self.get_job_name(key)
         job_descr_dict["Executable"] = (
             f". airflow_config.env && . {python_env} && python run_task_via_supervisor.py --json-string '{workload.model_dump_json()}'"  # TODO may require module load to be setup for some systems
         )
@@ -153,12 +156,20 @@ class NaiveJobDescriptionGenerator(JobDescriptionGenerator):
 
         airflow_env_import = {"To": "airflow_config.env", "Data": env_file_content}
 
-        job_descr_dict["User postcommand"] = ";".join(user_added_post_commands)
-        job_descr_dict["User precommand"] = ";".join(user_added_pre_commands)
+        job_descr_dict["Imports"] = [worker_script_import, airflow_env_import]
+
+        if len(user_added_pre_commands) > 0:
+            precommand_import = {"To": "precommand.sh", "Data": user_added_pre_commands}
+            job_descr_dict["Imports"].append(precommand_import)
+            job_descr_dict["User precommand"] = "bash precommand.sh"
+        if len(user_added_post_commands) > 0:
+            postcommand_import = {"To": "postcommand.sh", "Data": user_added_post_commands}
+            job_descr_dict["Imports"].append(postcommand_import)
+            job_descr_dict["User postcommand"] = "bash postcommand.sh"
+
         job_descr_dict["RunUserPrecommandOnLoginNode"] = (
             "true"  # precommand needs public internet access to clone dag repos
         )
-        job_descr_dict["Imports"] = [worker_script_import, airflow_env_import]
         # add user defined options to description
         if user_added_env:
             job_descr_dict["Environment"].update(user_added_env)
