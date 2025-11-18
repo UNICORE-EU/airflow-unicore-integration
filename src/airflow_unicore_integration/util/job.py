@@ -105,7 +105,6 @@ class NaiveJobDescriptionGenerator(JobDescriptionGenerator):
             # "AIRFLOW__CORE__DAGS_FOLDER": "./",
             "AIRFLOW__LOGGING__LOGGING_LEVEL": "DEBUG",
             "AIRFLOW__CORE__EXECUTOR": "LocalExecutor,airflow_unicore_integration.executors.unicore_executor.UnicoreExecutor",
-            "AIRFLOW__DAG_PROCESSOR__DAG_BUNDLE_STORAGE_PATH": f"{tmp_dir}/{workload.ti.id}/dagbundle",
         }
 
         # build filecontent string for importing in the job | this is needed to avoid confusing nested quotes and trying to escape them properly when using unicore env vars directly
@@ -136,9 +135,14 @@ class NaiveJobDescriptionGenerator(JobDescriptionGenerator):
             ):
                 git_hook = GitHook(conn_id_to_transmit)
                 git_remote_url = git_hook.repo_url
-                git_local_url = f"{tmp_dir}/{workload.ti.id}/dagmirror"
-                # add precommand to clone repo on ligon node
-                git_precommand = f". {python_env} && mkdir -p {tmp_dir}/{workload.ti.id}/dagmirror && mkdir -p {tmp_dir}/{workload.ti.id}/dagbundle && git clone {git_remote_url} {git_local_url}"
+                git_dir_prefix = f"{tmp_dir}/{workload.ti.dag_id}/{workload.ti.task_id}/{workload.ti.run_id}/{workload.ti.try_number}"
+                git_local_url = f"{git_dir_prefix}/dagmirror"
+                dag_bundle_path = f"{git_dir_prefix}/dagbundle"
+                # add precommand to clone repo on login node
+                git_precommand = f". {python_env} && mkdir -p {git_local_url} && mkdir -p {dag_bundle_path} && git clone {git_remote_url} {git_local_url}"
+                job_descr_dict["Environment"][
+                    "AIRFLOW__DAG_PROCESSOR__DAG_BUNDLE_STORAGE_PATH"
+                ] = f"{dag_bundle_path}"
                 logger.info(f"git precommand is {git_precommand}")
                 user_added_pre_commands.append(git_precommand)
                 # add connection to local clone to env of job
@@ -150,7 +154,7 @@ class NaiveJobDescriptionGenerator(JobDescriptionGenerator):
                 )
                 logger.info(f"connection is '{airflow_conn_string}'")
                 # add cleanup of local git repo to job description
-                git_cleanup_command = f"rm -r {tmp_dir}/{workload.ti.id}"
+                git_cleanup_command = f"rm -r {git_dir_prefix}"
                 logger.info(f"git cleanup is {git_cleanup_command}")
                 user_added_post_commands.append(git_cleanup_command)
 
