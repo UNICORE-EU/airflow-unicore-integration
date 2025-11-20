@@ -6,7 +6,7 @@ from typing import Sequence
 
 import pyunicore.client as uc_client
 import pyunicore.credentials as uc_credentials
-from airflow.models.baseoperator import BaseOperator
+from airflow.sdk.bases.operator import BaseOperator
 from airflow.utils.context import Context
 
 from airflow_unicore_integration.hooks import unicore_hooks
@@ -62,6 +62,7 @@ class UnicoreGenericOperator(BaseOperator):
         credential_username: str | None = None,
         credential_password: str | None = None,
         credential_token: str | None = None,
+        conn_id: str | None = None,
         **kwargs,
     ):
         """
@@ -114,6 +115,7 @@ class UnicoreGenericOperator(BaseOperator):
         self.credential_username = credential_username
         self.credential_password = credential_password
         self.credential_token = credential_token
+        self.conn_id = conn_id
 
         self.validate_job_description()
         logger.debug("created Unicore Job Task")
@@ -262,7 +264,7 @@ class UnicoreGenericOperator(BaseOperator):
 
     def execute_async(self, context: Context) -> Any:
         """Submits the job and returns the job object without waiting for it to finish."""
-        client = self.get_uc_client()
+        client = self.get_uc_client(self.conn_id)
         job = client.new_job(job_description=self.get_job_description(), inputs=[])
         return job
 
