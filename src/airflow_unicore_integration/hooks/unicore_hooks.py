@@ -1,8 +1,15 @@
 from __future__ import annotations
 
-from airflow.hooks.base import BaseHook
+import json
+import logging
+from typing import Any
+
+from airflow.providers.common.compat.sdk import BaseHook
 from pyunicore import client
 from pyunicore import credentials
+from wtforms import StringField
+
+logger = logging.getLogger(__name__)
 
 
 class UnicoreHook(BaseHook):
@@ -23,22 +30,43 @@ class UnicoreHook(BaseHook):
         super().__init__()
         self.uc_conn_id = uc_conn_id
 
+    @classmethod
+    def get_connection_form_fields(cls):
+        return {"auth_token": StringField("Auth Token")}
+
+    @classmethod
+    def get_ui_field_behaviour(cls) -> dict[str, Any]:
+        """Return custom UI field behaviour for UNICORE connection."""
+        return {
+            "hidden_fields": ["schema", "port", "extra"],
+            "relabeling": {
+                "login": "Username",
+            },
+            "placeholder": {"auth_token": "UNICORE auth token"},
+        }
+
     def get_conn(
         self,
         overwrite_base_url: str | None = None,
         overwrite_credential: credentials.Credential | None = None,
     ) -> client.Client:
         """Return a Unicore Client. base_url and credentials may be overwritten."""
-        self.log.debug(
+        logger.debug(
             f"Gettig connection with id '{self.uc_conn_id}' from secrets backend. Will be modified with user input for UNICORE."
         )
         params = self.get_connection(self.uc_conn_id)
         base_url = params.host
         credential = credentials.UsernamePassword(params.login, params.password)
+        auth_token = json.loads(params.extra).get("auth_token", None)
+        if auth_token is not None:
+            credential = credentials.create_credential(token=auth_token)
         if overwrite_base_url is not None:
             base_url = overwrite_base_url
         if overwrite_credential is not None:
             credential = overwrite_credential
+        if not base_url:
+            raise TypeError()
+        logger.info(f"Using credential {credential} for SITE {base_url}.")
         conn = client.Client(credential, base_url)
         return conn
 
