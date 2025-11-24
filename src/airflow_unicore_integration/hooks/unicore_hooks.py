@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 import logging
 from typing import Any
 
@@ -57,7 +56,7 @@ class UnicoreHook(BaseHook):
         params = self.get_connection(self.uc_conn_id)
         base_url = params.host
         credential = credentials.UsernamePassword(params.login, params.password)
-        auth_token = json.loads(params.extra).get("auth_token", None)
+        auth_token = params.extra_dejson.get("auth_token", None)
         if auth_token is not None:
             credential = credentials.create_credential(token=auth_token)
         if overwrite_base_url is not None:
