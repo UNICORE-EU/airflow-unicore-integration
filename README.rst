@@ -5,7 +5,7 @@ Unicore Airflow Integration
 
 |Generic badge|
 
-.. |Generic badge| image:: https://github.com/UNICORE-EU/airflow-unicore-integration/actions/workflows/publish-to-pypi.yml/badge.svg 
+.. |Generic badge| image:: https://github.com/UNICORE-EU/airflow-unicore-integration/actions/workflows/publish-to-pypi.yml/badge.svg
    :target: https://github.com/UNICORE-EU/airflow-unicore-integration/actions/workflows/publish-to-pypi.yml
 
 This project integrates `UNICORE <https://github.com/UNICORE-EU>`_ and `Apache Airflow <https://airflow.apache.org/>`_.
@@ -14,6 +14,30 @@ Airflow is a platform to programmatically author, schedule and monitor workflows
 
 In the current state, this projects provides a set of airflow `operators <https://airflow.apache.org/docs/apache-airflow/stable/core-concepts/operators.html>`_, which can be used as part of airflow workflows to submit jobs to Unicore.
 The UnicoreExecutor only offers experimental support for airflow 3 so far. Further support is currently being worked on.
+
+-------------------------
+Using the UnicoreExecutor
+-------------------------
+
+To use the UnicoreExecutor, this library needs to be installed in your airflow environment and then some configuration work needs to be done.
+
+How to configure these settigns is up to your deployment, as it uses the standard airflow configuration mechanism.
+In case of a helm deployemnt via the official helm chart, you will need to use environment variables, as all unicore related options are not present in the chart and will cause schema-validation to fail.
+
+All options fall under the [unicore.executor] section in airflow.cfg, or have the "AIRFLOW__UNICORE_EXECUTOR__" prefix as an environment variable.
+
+========================= ============================================ ===========================================================================================
+Option name               default                                      description
+========================= ============================================ ===========================================================================================
+EXECUTION_API_SERVER_URL  <The default from the airflow config>        The url to reach the airflow API server from the execution environment (e.g. compute nodes)
+AUTH_TOKEN                mandatory                                    The unicore auth token to use for job submission
+DEFAULT_URL               http://localhost:8080/DEMO-SITE/rest/core    The default unicore site to submit jobs to
+DEFAULT_ENV               mandatory                                    The default activation script for a functional airflow environment on the execution machine
+TMP_DIR                   /tmp                                         A temporary directory to store data such as GitDagBundles
+
+The default env is loaded via ". default_env.sh", and must enable an environment, where python is available in a suitable version, and the apache-airflow-task-sdk" and "apache-airflow-providers-git" packages are available. All other dependencies depend on the dags to be run, but must already be included in the environment.
+
+A simple solution for this may be the "activate" script for a python venv. If the target systems requires additional commands to enable python (e.g. module load), these may be added to the top of the activate script.
 
 ---------------------------
 Using the Unicore Operators
