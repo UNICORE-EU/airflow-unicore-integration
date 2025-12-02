@@ -65,9 +65,17 @@ class UnicoreHook(BaseHook):
             credential = overwrite_credential
         if not base_url:
             raise TypeError()
-        logger.info(f"Using credential {credential} for SITE {base_url}.")
         conn = client.Client(credential, base_url)
         return conn
+
+    def get_credential(self) -> credentials.Credential:
+        """Return the credential part of the connection as a Credential object."""
+        params = self.get_connection(self.uc_conn_id)
+        credential = credentials.UsernamePassword(params.login, params.password)
+        auth_token = params.extra_dejson.get("auth_token", None)
+        if auth_token is not None:
+            credential = credentials.create_credential(token=auth_token)
+        return credential
 
     def test_connection(self) -> tuple[bool, str]:
         """Test the connection by sending an access_info request"""
