@@ -34,6 +34,7 @@ AUTH_TOKEN                mandatory                                    The unico
 DEFAULT_URL               http://localhost:8080/DEMO-SITE/rest/core    The default unicore site to submit jobs to
 DEFAULT_ENV               mandatory                                    The default activation script for a functional airflow environment on the execution machine
 TMP_DIR                   /tmp                                         A temporary directory to store data such as GitDagBundles
+========================= ============================================ ===========================================================================================
 
 The default env is loaded via ". default_env.sh", and must enable an environment, where python is available in a suitable version, and the apache-airflow-task-sdk" and "apache-airflow-providers-git" packages are available. All other dependencies depend on the dags to be run, but must already be included in the environment.
 
