@@ -24,7 +24,7 @@ To use the UnicoreExecutor, this library needs to be installed in your airflow e
 How to configure these settigns is up to your deployment, as it uses the standard airflow configuration mechanism.
 In case of a helm deployemnt via the official helm chart, you will need to use environment variables, as all unicore related options are not present in the chart and will cause schema-validation to fail.
 
-All options fall under the [unicore.executor] section in airflow.cfg, or have the `AIRFLOW__UNICORE_EXECUTOR__`` prefix as an environment variable.
+All options fall under the [unicore.executor] section in airflow.cfg, or have the ``AIRFLOW__UNICORE_EXECUTOR__`` prefix as an environment variable.
 
 ========================= ============================================ ===========================================================================================
 Option name               default                                      description
@@ -36,9 +36,9 @@ DEFAULT_ENV               mandatory                                    The defau
 TMP_DIR                   /tmp                                         A temporary directory to store data such as GitDagBundles
 ========================= ============================================ ===========================================================================================
 
-The default env is loaded via `. default_env.sh`, and must enable an environment, where python is available in a suitable version, and the `apache-airflow-task-sdk` and `apache-airflow-providers-git` packages are available. All other dependencies depend on the dags to be run, but must already be included in the environment.
+The default env is loaded via ``. default_env.sh``, and must enable an environment, where python is available in a suitable version, and the ``apache-airflow-task-sdk`` and ``apache-airflow-providers-git`` packages are available. All other dependencies depend on the dags to be run, but must already be included in the environment.
 
-A simple solution for this may be the "activate" script for a python venv. If the target systems requires additional commands to enable python (e.g. `module load`), these may be added to the top of the activate script.
+A simple solution for this may be the "activate" script for a python venv. If the target systems requires additional commands to enable python (e.g. ``module load``), these may be added to the top of the activate script.
 
 ---------------------------
 Using the Unicore Operators
