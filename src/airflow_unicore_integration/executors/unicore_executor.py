@@ -22,6 +22,7 @@ from airflow.utils.state import TaskInstanceState
 from pyunicore import client
 from pyunicore.credentials import create_credential
 
+from ..hooks.unicore_hooks import UnicoreHook
 from ..util.job import JobDescriptionGenerator
 from ..util.job import NaiveJobDescriptionGenerator
 
@@ -78,11 +79,18 @@ class UnicoreExecutor(BaseExecutor):
         overwrite_unicore_credential = executor_config.get(  # type: ignore
             UnicoreExecutor.EXECUTOR_CONFIG_UNICORE_CREDENTIAL_KEY, None
         )  # task can provide a different credential to use, else default from connection is used
+        overwrite_conn_id = executor_config.get(  # type: ignore
+            UnicoreExecutor.EXECUTOR_CONFIG_UNICORE_CONN_KEY, None
+        )
         token = conf.get("unicore.executor", "AUTH_TOKEN", fallback="")
         base_url = conf.get(
             "unicore.executor", "DEFAULT_URL", fallback="http://localhost:8080/DEMO-SITE/rest/core"
         )
         credential = create_credential(token=token)
+        if overwrite_conn_id is not None:
+            hook = UnicoreHook(overwrite_conn_id)
+            base_url = hook.get_base_url()
+            credential = hook.get_credential()
         if overwrite_unicore_site is not None:
             base_url = overwrite_unicore_site
         if overwrite_unicore_credential is not None:
