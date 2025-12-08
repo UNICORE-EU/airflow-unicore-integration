@@ -77,6 +77,11 @@ class UnicoreHook(BaseHook):
             credential = credentials.create_credential(token=auth_token)
         return credential
 
+    def get_base_url(self) -> str:
+        """Return the base url of the connection."""
+        params = self.get_connection(self.uc_conn_id)
+        return params.host
+
     def test_connection(self) -> tuple[bool, str]:
         """Test the connection by sending an access_info request"""
         conn = self.get_conn()
