@@ -28,6 +28,7 @@ class UnicoreHook(BaseHook):
     def __init__(self, uc_conn_id: str = default_conn_name) -> None:
         super().__init__()
         self.uc_conn_id = uc_conn_id
+        self.get_connection(self.uc_conn_id)
 
     @classmethod
     def get_connection_form_fields(cls):
@@ -38,9 +39,7 @@ class UnicoreHook(BaseHook):
         """Return custom UI field behaviour for UNICORE connection."""
         return {
             "hidden_fields": ["schema", "port", "extra"],
-            "relabeling": {
-                "login": "Username",
-            },
+            "relabeling": {"login": "Username", "host": "Site URL"},
             "placeholder": {"auth_token": "UNICORE auth token"},
         }
 
@@ -76,6 +75,11 @@ class UnicoreHook(BaseHook):
         if auth_token is not None:
             credential = credentials.create_credential(token=auth_token)
         return credential
+
+    def get_token(self) -> str:
+        """Returns a token if present, None if not."""
+        params = self.get_connection(self.uc_conn_id)
+        return params.extra_dejson.get("auth_token", None)
 
     def get_base_url(self) -> str:
         """Return the base url of the connection."""
