@@ -26,6 +26,7 @@ class JobDescriptionGenerator:
     EXECUTOR_CONFIG_PRE_COMMANDS = "precommands"  # gets added to the unicore job description
     EXECUTOR_CONFIG_POST_COMMANDS = "postcommands"  # gets added to the unicore job descirption
     EXECUTOR_CONFIG_JOB_TYPE = "job_type"
+    EXECUTOR_CONFIG_LOGIN_NODE = "login_node"
     EXECUTOR_CONFIG_UNICORE_CONN_KEY = (
         "unicore_connection_id"  # alternative connection id for the Unicore connection to use
     )
@@ -61,6 +62,7 @@ class NaiveJobDescriptionGenerator(JobDescriptionGenerator):
         user_defined_python_env: str = workload.ti.executor_config.get(JobDescriptionGenerator.EXECUTOR_CONFIG_PYTHON_ENV_KEY, None)  # type: ignore
         user_added_post_commands: list[str] = executor_config.get(JobDescriptionGenerator.EXECUTOR_CONFIG_POST_COMMANDS, [])  # type: ignore
         user_defined_job_type: str = executor_config.get(JobDescriptionGenerator.EXECUTOR_CONFIG_JOB_TYPE, None)  # type: ignore
+        user_defined_login_node: str = executor_config.get(JobDescriptionGenerator.EXECUTOR_CONFIG_LOGIN_NODE, None)  # type: ignore
         # get local dag path from cmd and fix dag path in arguments
         dag_rel_path = str(workload.dag_rel_path)
         if dag_rel_path.startswith("DAG_FOLDER"):
@@ -76,6 +78,8 @@ class NaiveJobDescriptionGenerator(JobDescriptionGenerator):
         # set job type
         if user_defined_job_type:
             job_descr_dict["Job type"] = user_defined_job_type
+        if user_defined_login_node:
+            job_descr_dict["Login Node"] = user_defined_login_node
 
         # check which python virtualenv to use
         if user_defined_python_env:
