@@ -53,6 +53,7 @@ def unicore_executor_template_dag():
                 "echo These postcommands get executed on the login node.",
             ],
             "job_type": "on_login_node",  # the type of the job as defined by unicore. Possibilites are: "batch" and "on_login_node"
+            "login_node": "jusuf3",  # specify a login node to use. * and ? wildcards are allowed
         },
     )
     def login_template():
