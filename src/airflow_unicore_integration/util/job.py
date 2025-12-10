@@ -79,7 +79,7 @@ class NaiveJobDescriptionGenerator(JobDescriptionGenerator):
         if user_defined_job_type:
             job_descr_dict["Job type"] = user_defined_job_type
         if user_defined_login_node:
-            job_descr_dict["Login Node"] = user_defined_login_node
+            job_descr_dict["Login node"] = user_defined_login_node
 
         # check which python virtualenv to use
         if user_defined_python_env:
