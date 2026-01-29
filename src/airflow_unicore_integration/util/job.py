@@ -27,6 +27,7 @@ class JobDescriptionGenerator:
     EXECUTOR_CONFIG_POST_COMMANDS = "postcommands"  # gets added to the unicore job descirption
     EXECUTOR_CONFIG_JOB_TYPE = "job_type"
     EXECUTOR_CONFIG_LOGIN_NODE = "login_node"
+    EXECUTOR_CONFIG_JOB_DESCRIPTION_PARAMS = "custom_job_description_additions"
     EXECUTOR_CONFIG_UNICORE_CONN_KEY = (
         "unicore_connection_id"  # alternative connection id for the Unicore connection to use
     )
@@ -63,6 +64,7 @@ class NaiveJobDescriptionGenerator(JobDescriptionGenerator):
         user_added_post_commands: list[str] = executor_config.get(JobDescriptionGenerator.EXECUTOR_CONFIG_POST_COMMANDS, [])  # type: ignore
         user_defined_job_type: str = executor_config.get(JobDescriptionGenerator.EXECUTOR_CONFIG_JOB_TYPE, None)  # type: ignore
         user_defined_login_node: str = executor_config.get(JobDescriptionGenerator.EXECUTOR_CONFIG_LOGIN_NODE, None)  # type: ignore
+        user_added_job_description: Dict[str, Any] = executor_config.get(JobDescriptionGenerator.EXECUTOR_CONFIG_JOB_DESCRIPTION_PARAMS, {})  # type: ignore
         # get local dag path from cmd and fix dag path in arguments
         dag_rel_path = str(workload.dag_rel_path)
         if dag_rel_path.startswith("DAG_FOLDER"):
@@ -193,5 +195,8 @@ class NaiveJobDescriptionGenerator(JobDescriptionGenerator):
             job_descr_dict["Project"] = user_added_project
         if user_added_resources:
             job_descr_dict["Resources"] = user_added_resources
+
+        # overwrite with values from user added field
+        job_descr_dict.update(user_added_job_description)
 
         return job_descr_dict
