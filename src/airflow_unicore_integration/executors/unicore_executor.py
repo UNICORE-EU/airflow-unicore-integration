@@ -20,8 +20,10 @@ from airflow.models.taskinstance import TaskInstance
 from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.utils.state import TaskInstanceState
 from pyunicore import client
+from pyunicore.credentials import AuthenticationFailedException
 from pyunicore.credentials import Credential
 from pyunicore.credentials import create_credential
+from requests.exceptions import RequestException
 
 from ..util.job import JobDescriptionGenerator
 from ..util.job import NaiveJobDescriptionGenerator
@@ -152,7 +154,24 @@ class UnicoreExecutor(BaseExecutor):
             raise TypeError(f"Don't know how to queue workload of type {type(workload).__name__}")
 
         # submit job to unicore and add to active_jobs dict for task state management
-        job = self._submit_job(workload)
+        try:
+            job = self._submit_job(workload)
+        except AuthenticationFailedException as auth_exception:
+            self.fail(workload.ti.key)
+            self.log.error(
+                "Invalid default credentials for UNICORE. Failing all UNICORE tasks until this has been resolved."
+            )
+            self.log.error(auth_exception)
+            return
+        except RequestException as re:
+            # Any kind of requests error, from DNS issues, to timeout Issues, to invalid UNICORE URL issues
+            self.fail(workload.ti.key)
+            self.log.error(
+                "Some Error appeared during the connection attempt to UNICORE. Failing this task Instance."
+            )
+            self.log.error(re)
+            return
+
         self.active_jobs[workload.ti.key] = job
 
     def end(self, heartbeat_interval=10) -> None:
