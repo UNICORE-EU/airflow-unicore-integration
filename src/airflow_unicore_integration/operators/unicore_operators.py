@@ -97,7 +97,7 @@ class UnicoreGenericOperator(BaseOperator):
         self.user_post_command_ignore_non_zero_exit_code = (
             user_post_command_ignore_non_zero_exit_code
         )
-        self.resources = uc_resources
+        self.uc_resources = uc_resources
         self.project = project
         self.imports = imports
         self.exports = exports
@@ -217,7 +217,7 @@ class UnicoreGenericOperator(BaseOperator):
                 self.user_post_command_ignore_non_zero_exit_code
             )
 
-        if self.resources is not None:
+        if self.uc_resources is not None:
             job_description_dict["Resources"] = self.resources
 
         if self.project is not None:
