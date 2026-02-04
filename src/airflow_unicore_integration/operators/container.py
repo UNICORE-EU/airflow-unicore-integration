@@ -13,7 +13,9 @@ class UnicoreContainerOperator(UnicoreGenericOperator):
             application_version="1.0",
             **kwargs,
         )
-        self.params["COMMAND"] = command
-        self.params["IMAGE_URL"] = docker_image_url
+        if not self.parameters:
+            self.parameters = {}
+        self.parameters["COMMAND"] = command
+        self.parameters["IMAGE_URL"] = docker_image_url
         if options is not None:
-            self.params["OPTIONS"] = options
+            self.parameters["OPTIONS"] = options
