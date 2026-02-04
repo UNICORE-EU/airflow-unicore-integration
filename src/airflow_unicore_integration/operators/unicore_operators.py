@@ -45,7 +45,7 @@ class UnicoreGenericOperator(BaseOperator):
         user_post_command: str | None = None,
         run_user_post_command_on_login_node: bool | None = None,
         user_post_command_ignore_non_zero_exit_code: bool | None = None,
-        resources: Dict[str, str] | None = None,
+        uc_resources: Dict[str, str] | None = None,
         project: str | None = None,
         imports: List[Dict[str, str | Sequence[str]]] | None = None,
         exports: List[Dict[str, str | List[str]]] | None = None,
@@ -97,7 +97,7 @@ class UnicoreGenericOperator(BaseOperator):
         self.user_post_command_ignore_non_zero_exit_code = (
             user_post_command_ignore_non_zero_exit_code
         )
-        self.resources = resources
+        self.resources = uc_resources
         self.project = project
         self.imports = imports
         self.exports = exports
