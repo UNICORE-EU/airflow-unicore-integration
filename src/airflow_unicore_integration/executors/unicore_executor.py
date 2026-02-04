@@ -159,7 +159,7 @@ class UnicoreExecutor(BaseExecutor):
         except AuthenticationFailedException as auth_exception:
             self.fail(workload.ti.key)
             self.log.error(
-                "Invalid default credentials for UNICORE. Failing all UNICORE tasks until this has been resolved."
+                "Invalid credentials for UNICORE. Failing all UNICORE tasks until this has been resolved."
             )
             self.log.error(auth_exception)
             return
