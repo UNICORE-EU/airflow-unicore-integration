@@ -218,7 +218,7 @@ class UnicoreGenericOperator(BaseOperator):
             )
 
         if self.uc_resources is not None:
-            job_description_dict["Resources"] = self.resources
+            job_description_dict["Resources"] = self.uc_resources
 
         if self.project is not None:
             job_description_dict["Project"] = self.project
