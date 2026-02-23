@@ -3,10 +3,10 @@ import logging
 from typing import Any
 from typing import Dict
 
-from airflow.configuration import conf
 from airflow.executors.workloads import ExecuteTask
 from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.providers.git.hooks.git import GitHook
+from airflow.sdk.configuration import AirflowSDKConfigParser
 
 from .launch_script_content import LAUNCH_SCRIPT_CONTENT_STR
 
@@ -33,6 +33,9 @@ class JobDescriptionGenerator:
     )
     EXECUTOR_CONFIG_UNICORE_SITE_KEY = "unicore_site"  # alternative Unicore site to run at, only required if different than connection default
     EXECUTOR_CONFIG_UNICORE_CREDENTIAL_KEY = "unicore_credential"  # alternative unicore credential to use for the job, only required if different than connection default
+
+    def __init__(self, conf: AirflowSDKConfigParser) -> None:
+        self.conf = conf
 
     def create_job_description(self, workload: ExecuteTask) -> Dict[str, Any]:
         raise NotImplementedError()
@@ -70,9 +73,9 @@ class NaiveJobDescriptionGenerator(JobDescriptionGenerator):
         if dag_rel_path.startswith("DAG_FOLDER"):
             dag_rel_path = dag_rel_path[10:]
         # local_dag_path = conf.get("core", "DAGS_FOLDER") + "/" + dag_rel_path
-        base_url = conf.get("api", "base_url", fallback="/")
+        base_url = self.conf.get("api", "base_url", fallback="/")
         default_execution_api_server = f"{base_url.rstrip('/')}/execution/"
-        server = conf.get(
+        server = self.conf.get(
             "unicore.executor", "execution_api_server_url", fallback=default_execution_api_server
         )
         logger.debug(f"Server is {server}")
@@ -87,8 +90,8 @@ class NaiveJobDescriptionGenerator(JobDescriptionGenerator):
         if user_defined_python_env:
             python_env = user_defined_python_env
         else:
-            python_env = conf.get("unicore.executor", "DEFAULT_ENV")
-        tmp_dir = conf.get("unicore.executor", "TMP_DIR", "/tmp")
+            python_env = self.conf.get("unicore.executor", "DEFAULT_ENV")
+        tmp_dir = self.conf.get("unicore.executor", "TMP_DIR", "/tmp")
         # prepare dag file to be uploaded via unicore
         # dag_file = open("/tmp/test")
         # dag_content = dag_file.readlines()
@@ -123,7 +126,7 @@ class NaiveJobDescriptionGenerator(JobDescriptionGenerator):
         env_file_content: list[str] = []
 
         # transmit needed dag bundle information (and possibly files) to job directory
-        bundle_str = conf.get("dag.processor", "dag_bundle_config_list")
+        bundle_str = self.conf.get("dag.processor", "dag_bundle_config_list")
         logger.debug(f"Dag Bundle config is: {bundle_str}")
         bundle_dict = json.loads(bundle_str)
         conn_id_to_transmit = None

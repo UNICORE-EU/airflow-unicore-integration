@@ -12,7 +12,6 @@ from typing import Any
 from typing import Dict
 
 import pyunicore.client as uc_client
-from airflow.configuration import conf
 from airflow.executors.base_executor import BaseExecutor
 from airflow.executors.workloads import All
 from airflow.executors.workloads import ExecuteTask
@@ -45,12 +44,20 @@ class UnicoreExecutor(BaseExecutor):
     EXECUTOR_CONFIG_UNICORE_SITE_KEY = "unicore_site"  # alternative Unicore site to run at, only required if different than connection default
     EXECUTOR_CONFIG_UNICORE_CREDENTIAL_KEY = "unicore_credential"  # alternative unicore credential to use for the job, only required if different than connection default
 
-    serve_logs = True
+    supports_multi_team: bool = True
+    # serve_logs = True
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if not hasattr(self, "conf"):
+            from airflow.sdk import conf
+
+            self.conf = conf
 
     def start(self):
         self.active_jobs: Dict[TaskInstanceKey, uc_client.Job] = {}
         # TODO get job description generator class and init params from config
-        self.job_descr_generator: JobDescriptionGenerator = NaiveJobDescriptionGenerator()
+        self.job_descr_generator: JobDescriptionGenerator = NaiveJobDescriptionGenerator(self.conf)
 
     def _handle_used_compute_time(self, task: TaskInstanceKey, job: uc_client.Job) -> None:
         pass
@@ -118,11 +125,11 @@ class UnicoreExecutor(BaseExecutor):
         overwrite_unicore_credential = executor_config.get(  # type: ignore
             UnicoreExecutor.EXECUTOR_CONFIG_UNICORE_CREDENTIAL_KEY, None
         )  # task can provide a different credential to use, else default from connection is used
-        token = conf.get("unicore.executor", "AUTH_TOKEN", fallback="")
+        token = self.conf.get("unicore.executor", "AUTH_TOKEN", fallback="")
         if overwrite_unicore_credential is not None:
             token = overwrite_unicore_credential
             self.log.debug("Using user provided token.")
-        base_url = conf.get(
+        base_url = self.conf.get(
             "unicore.executor", "DEFAULT_URL", fallback="http://localhost:8080/DEMO-SITE/rest/core"
         )
         credential: Credential = create_credential(token=token)

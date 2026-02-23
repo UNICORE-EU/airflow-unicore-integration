@@ -7,7 +7,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "airflow-unicore-integration"
-version = "0.3.3"
+version = "0.4.0-rc1"
 authors = [
   { name="Christian Böttcher", email="c.boettcher@fz-juelich.de" },
 ]
