@@ -7,6 +7,7 @@ tasks should be allowed to overwrite SITE, CREDENTIALS_*, UNICORE_CONN_ID and DE
 
 """
 
+import json
 import time
 from typing import Any
 from typing import Dict
@@ -121,19 +122,34 @@ class UnicoreExecutor(BaseExecutor):
                     return job
 
     def _get_unicore_client(self, executor_config: dict | None = {}):
+        overwrite_preconfigured_site = executor_config.get(  # type: ignore
+            UnicoreExecutor.Executor_CONFIG_UNICORE_PRECONFIGURED_SITE_KEY, None
+        )  # task can provide a different preconfigured site to run at, else first one from config is used
         overwrite_unicore_site = executor_config.get(  # type: ignore
             UnicoreExecutor.EXECUTOR_CONFIG_UNICORE_SITE_KEY, None
-        )  # task can provide a different site to run at, else default from connetion is used
+        )  # task can provide a different site to run at, else preconfigured site is used
         overwrite_unicore_credential = executor_config.get(  # type: ignore
             UnicoreExecutor.EXECUTOR_CONFIG_UNICORE_CREDENTIAL_KEY, None
-        )  # task can provide a different credential to use, else default from connection is used
-        token = self.conf.get("unicore.executor", "AUTH_TOKEN", fallback="")
+        )  # task can provide a different credential to use, else preconfigured site credential is used
+
+        # list of sites
+        # each site is a lsit of strings, containing [0] site name, [1] site url, [2] auth_token
+        preconfigured_sites: list[list[str]] = json.loads(
+            self.conf.get("unicore.executor", "SITES_CONFIG", "")
+        )
+        site = preconfigured_sites[0]
+        if overwrite_preconfigured_site is not None:
+            for tmp in preconfigured_sites:
+                if tmp[0] == overwrite_preconfigured_site:
+                    site = tmp
+                    break
+
+        base_url = site[1]
+        token = site[2]
+
         if overwrite_unicore_credential is not None:
             token = overwrite_unicore_credential
             self.log.debug("Using user provided token.")
-        base_url = self.conf.get(
-            "unicore.executor", "DEFAULT_URL", fallback="http://localhost:8080/DEMO-SITE/rest/core"
-        )
         credential: Credential = create_credential(token=token)
         if overwrite_unicore_site is not None:
             base_url = overwrite_unicore_site
