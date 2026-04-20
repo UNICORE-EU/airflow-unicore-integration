@@ -43,6 +43,7 @@ class UnicoreExecutor(BaseExecutor):
 
     EXECUTOR_CONFIG_UNICORE_SITE_KEY = "unicore_site"  # alternative Unicore site to run at, only required if different than connection default
     EXECUTOR_CONFIG_UNICORE_CREDENTIAL_KEY = "unicore_credential"  # alternative unicore credential to use for the job, only required if different than connection default
+    Executor_CONFIG_UNICORE_PRECONFIGURED_SITE_KEY = "site"  # name of the preconfigured site to use , only requried if different from the default site
 
     supports_multi_team: bool = True
     # serve_logs = True
@@ -75,7 +76,8 @@ class UnicoreExecutor(BaseExecutor):
                 self.active_jobs.pop(task)
                 self._handle_used_compute_time(task, job)
             elif state == TaskInstanceState.QUEUED:
-                self.running_state(task, state)
+                # self.running_state(task, state)
+                pass
 
         return super().sync()
 
@@ -151,6 +153,7 @@ class UnicoreExecutor(BaseExecutor):
         job = unicore_client.new_job(job_descr)
         self.log.info("Submitted unicore job")
         self.active_jobs[workload.ti.key] = job
+        self.running_state(workload.ti.key, TaskInstanceState.QUEUED)
         return job
 
     def _create_job_description(self, workload: ExecuteTask) -> Dict[str, Any]:
