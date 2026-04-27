@@ -67,11 +67,32 @@ x-airflow-common:
     AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: 'true'
     AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
     AIRFLOW__CORE__EXECUTION_API_SERVER_URL: 'http://airflow-apiserver:8080/execution/'
+    AIRFLOW__CORE__MULTI_TEAM: 'true'
     AIRFLOW__UNICORE_EXECUTOR__EXECUTION_API_SERVER_URL: 'http://airflow-apiserver:8080/execution/'
-    AIRFLOW__UNICORE_EXECUTOR__DEFAULT_USER: "demouser"
-    AIRFLOW__UNICORE_EXECUTOR__DEFAULT_PASS: "test123"
-    AIRFLOW__UNICORE_EXECUTOR__AUTH_TOKEN: "eyJhbGciOiJSUzI1NiJ9.eyJzdWIiOiJDTj1EZW1vIFVzZXIsIE89VU5JQ09SRSwgQz1FVSIsImF1ZCI6IkNOPVVOSUNPUkVYLE89VU5JQ09SRSxDPUVVIiwiZXRkIjoidHJ1ZSIsImlzcyI6IkNOPVVOSUNPUkVYLE89VU5JQ09SRSxDPUVVIiwiZXhwIjoxNzk0MzIwMzQ1LCJpYXQiOjE3NjI3ODQzNDV9.gFyRTSlDwTihObcI07ambShsczBNCC9WHJYU_FzToDIef3gKuSTmvF6ozpovuYvhlbC1QVh0fma-7yUvj88VTAsl_zQpVaV1zzqR3Jp-fiMCIfrP7rbjORhMRgqh5RNSMRSHwuVF8zvJMzBWulTVrCJViVFNHcNs269kIvnCMPAKT8rGVfTXMtHTm8POE4JhYFcuR-zzXMWjP-X5wwx5gMu1_7HZpNAv7ABjq0u5_-MYhLa2wp72iCep7vVG1i8FqiRrlHHCRT6aGrsFM-It0KU1hs8dTPsH4rAxtJY9vIukErpVzCATaDFYKeZnI8t74g4am8E6C4wzN_LKx-d8uA"
-    AIRFLOW__UNICORE_EXECUTOR__DEFAULT_URL: 'https://unicore:8080/DEMO-SITE/rest/core'
+    AIRFLOW__UNICORE_EXECUTOR__SITES_CONFIG: |
+      [
+        [
+          "local",
+          "https://unicore:8080/DEMO-SITE/rest/core"
+        ],
+        [
+          "local2",
+          "https://unicore:8080/DEMO-SITE/rest/core"
+        ],
+        [
+          "local3",
+          "https://unicore:8080/DEMO-SITE/rest/core"
+        ]
+      ]
+
+    AIRFLOW__UNICORE_EXECUTOR__SITES_TOKEN_LOCAL: "eyJhbGciOiJSUzI1NiJ9.eyJzdWIiOiJDTj1EZW1vIFVzZXIsIE89VU5JQ09SRSwgQz1FVSIsImF1ZCI6IkNOPVVOSUNPUkVYLE89VU5JQ09SRSxDPUVVIiwiZXRkIjoidHJ1ZSIsImlzcyI6IkNOPVVOSUNPUkVYLE89VU5JQ09SRSxDPUVVIiwiZXhwIjoxNzc3MzA4MDI0LCJpYXQiOjE3NzY5NDgwMjR9.GaqVU1-A2dfMO8-SnNCYI1SQEtAYcFqgVPqac7nC2LjioN0FGJ8GGs5yzw9U8h8mGwfrEmvfJK2z4QAbBSTXKVNhjR4gxGUuc3JU86TyA19lRshS2HJsUV7j-cJjhFq4s8aoedgHCpQ2GErQWi2j-VB-BtDHbAmiCC3MI4LYex8WMwn39oR-FLKbBieAVh2tjPHF4SrUpwwfWpAr3wyiYplCmPElQL4yKH-A3zw1mUDibRrMqSilZJ6wxOaSQ0OGBOlz__sNlfXadCgWhgpG3ymdtCxE8dR7LYQjrS6vhll-kavRwYVmk47ASCtNZV4BHso2fWhl36Pv2d7SaOzsMg"
+    AIRFLOW__UNICORE_EXECUTOR__SITES_TOKEN_LOCAL2: "eyJhbGciOiJSUzI1NiJ9.eyJzdWIiOiJDTj1EZW1vIFVzZXIsIE89VU5JQ09SRSwgQz1FVSIsImF1ZCI6IkNOPVVOSUNPUkVYLE89VU5JQ09SRSxDPUVVIiwiZXRkIjoidHJ1ZSIsImlzcyI6IkNOPVVOSUNPUkVYLE89VU5JQ09SRSxDPUVVIiwiZXhwIjoxNzc3MzA4MDI0LCJpYXQiOjE3NzY5NDgwMjR9.GaqVU1-A2dfMO8-SnNCYI1SQEtAYcFqgVPqac7nC2LjioN0FGJ8GGs5yzw9U8h8mGwfrEmvfJK2z4QAbBSTXKVNhjR4gxGUuc3JU86TyA19lRshS2HJsUV7j-cJjhFq4s8aoedgHCpQ2GErQWi2j-VB-BtDHbAmiCC3MI4LYex8WMwn39oR-FLKbBieAVh2tjPHF4SrUpwwfWpAr3wyiYplCmPElQL4yKH-A3zw1mUDibRrMqSilZJ6wxOaSQ0OGBOlz__sNlfXadCgWhgpG3ymdtCxE8dR7LYQjrS6vhll-kavRwYVmk47ASCtNZV4BHso2fWhl36Pv2d7SaOzsMg"
+    AIRFLOW__UNICORE_EXECUTOR__SITES_TOKEN_LOCAL3: "eyJhbGciOiJSUzI1NiJ9.eyJzdWIiOiJDTj1EZW1vIFVzZXIsIE89VU5JQ09SRSwgQz1FVSIsImF1ZCI6IkNOPVVOSUNPUkVYLE89VU5JQ09SRSxDPUVVIiwiZXRkIjoidHJ1ZSIsImlzcyI6IkNOPVVOSUNPUkVYLE89VU5JQ09SRSxDPUVVIiwiZXhwIjoxNzc3MzA4MDI0LCJpYXQiOjE3NzY5NDgwMjR9.GaqVU1-A2dfMO8-SnNCYI1SQEtAYcFqgVPqac7nC2LjioN0FGJ8GGs5yzw9U8h8mGwfrEmvfJK2z4QAbBSTXKVNhjR4gxGUuc3JU86TyA19lRshS2HJsUV7j-cJjhFq4s8aoedgHCpQ2GErQWi2j-VB-BtDHbAmiCC3MI4LYex8WMwn39oR-FLKbBieAVh2tjPHF4SrUpwwfWpAr3wyiYplCmPElQL4yKH-A3zw1mUDibRrMqSilZJ6wxOaSQ0OGBOlz__sNlfXadCgWhgpG3ymdtCxE8dR7LYQjrS6vhll-kavRwYVmk47ASCtNZV4BHso2fWhl36Pv2d7SaOzsMg"
+    #AIRFLOW__UNICORE_EXECUTOR__DEFAULT_USER: "demouser"
+    #AIRFLOW__UNICORE_EXECUTOR__DEFAULT_PASS: "" # "test123"
+    #AIRFLOW__UNICORE_EXECUTOR__AUTH_TOKEN: "eyJhbGciOiJSUzI1NiJ9.eyJzdWIiOiJDTj1EZW1vIFVzZXIsIE89VU5JQ09SRSwgQz1FVSIsImV0ZCI6InRydWUiLCJyZW5ld2FibGUiOiJ0cnVlIiwiaXNzIjoiQ049VU5JQ09SRVgsTz1VTklDT1JFLEM9RVUiLCJleHAiOjE4MDI4NTI2OTYsImlhdCI6MTc3MTMxNjY5Nn0.VVSj4qKXtgJDmn-wXOa9Rcb6-W9hItVsjNS8jWg2RshMA9NA6OmtsQ6p1XYxzRjMeGdUoh_tyzQL9B_Zhi2UmN5oX5dDil1xH_nVH75RTLx8AyAMVEcM2Twg0-nJvd1tQzma6gfr2xoXRf4d0BbsRZS-WNc4HMXSQvKgcz1YHbkzmC_MXAnWRkZQP3YwJGTDIo4jeXr6C3LOtvMF5_nrIr3c45R8Ou937UmnafCQ2RAjD6mGxflHY6mFYoSHmBh8ggExsvFEauM6ol2ktEHVn2scGX9WS5Tw3RMccznjN4B8zA22zf4upRhJILWuARGVAsdr3w50sQqs0vNNU2l6IA"
+    # "eyJhbGciOiJSUzI1NiJ9.eyJzdWIiOiJDTj1EZW1vIFVzZXIsIE89VU5JQ09SRSwgQz1FVSIsImF1ZCI6IkNOPVVOSUNPUkVYLE89VU5JQ09SRSxDPUVVIiwiZXRkIjoidHJ1ZSIsImlzcyI6IkNOPVVOSUNPUkVYLE89VU5JQ09SRSxDPUVVIiwiZXhwIjoxNzk0MzIwMzQ1LCJpYXQiOjE3NjI3ODQzNDV9.gFyRTSlDwTihObcI07ambShsczBNCC9WHJYU_FzToDIef3gKuSTmvF6ozpovuYvhlbC1QVh0fma-7yUvj88VTAsl_zQpVaV1zzqR3Jp-fiMCIfrP7rbjORhMRgqh5RNSMRSHwuVF8zvJMzBWulTVrCJViVFNHcNs269kIvnCMPAKT8rGVfTXMtHTm8POE4JhYFcuR-zzXMWjP-X5wwx5gMu1_7HZpNAv7ABjq0u5_-MYhLa2wp72iCep7vVG1i8FqiRrlHHCRT6aGrsFM-It0KU1hs8dTPsH4rAxtJY9vIukErpVzCATaDFYKeZnI8t74g4am8E6C4wzN_LKx-d8uA"
+    #AIRFLOW__UNICORE_EXECUTOR__DEFAULT_URL: 'https://unicore:8080/DEMO-SITE/rest/core'
     AIRFLOW__UNICORE_EXECUTOR__DEFAULT_ENV: /opt/venv/bin/activate
     AIRFLOW__UNICORE_EXECUTOR__TMP_DIR: /tmp
     AIRFLOW__EDGE__API_ENABLED: 'true'
@@ -80,6 +101,16 @@ x-airflow-common:
 
     AIRFLOW__DAG_PROCESSOR__DAG_BUNDLE_CONFIG_LIST: |
       [
+        {
+          "name": "hippo-dags-bundle",
+          "classpath": "airflow.providers.git.bundles.git.GitDagBundle",
+          "kwargs": {
+            "git_conn_id": "hippo_dags_conn",
+            "subdir": "dags",
+            "tracking_ref": "main",
+            "refresh_interval": 10
+          }
+        },
         {
           "name": "airflow-unicore-development-dags-bundle",
           "classpath": "airflow.providers.git.bundles.git.GitDagBundle",
@@ -97,6 +128,14 @@ x-airflow-common:
         "login": "airflow-git-sync",
         "password": "QB5lCr68wt5CXAtiCZEnN286MQp1OjRhMgk.01.0z0lakizk",
         "host": "https://gitlab.jsc.fz-juelich.de/hippo/airflow-unicore-development-dags.git"
+      }
+
+    AIRFLOW_CONN_HIPPO_DAGS_CONN: |
+      {
+        "conn_type": "git",
+        "login": "airflow-git-sync",
+        "password": "qg2JfxYJQEa8yvKY-XgVXG86MQp1OjQ5egk.01.0z0hette6",
+        "host": "https://gitlab.jsc.fz-juelich.de/gislason1/hippo_dags.git"
       }
 
     # yamllint disable rule:line-length
@@ -137,7 +176,7 @@ services:
       interval: 10s
       retries: 5
       start_period: 5s
-    restart: always
+    restart: unless-stopped
 
   redis:
     # Redis is limited to 7.2-bookworm due to licencing change
@@ -151,7 +190,7 @@ services:
       timeout: 30s
       retries: 50
       start_period: 30s
-    restart: always
+    restart: unless-stopped
 
   airflow-apiserver:
     <<: *airflow-common
@@ -164,7 +203,7 @@ services:
       timeout: 10s
       retries: 5
       start_period: 30s
-    restart: always
+    restart: unless-stopped
     depends_on:
       <<: *airflow-common-depends-on
       airflow-init:
@@ -179,7 +218,7 @@ services:
       timeout: 10s
       retries: 5
       start_period: 30s
-    restart: always
+    restart: unless-stopped
     depends_on:
       <<: *airflow-common-depends-on
       airflow-init:
@@ -194,7 +233,7 @@ services:
       timeout: 10s
       retries: 5
       start_period: 30s
-    restart: always
+    restart: unless-stopped
     depends_on:
       <<: *airflow-common-depends-on
       airflow-init:
@@ -217,7 +256,7 @@ services:
       # Required to handle warm shutdown of the celery workers properly
       # See https://airflow.apache.org/docs/docker-stack/entrypoint.html#signal-propagation
       DUMB_INIT_SETSID: "0"
-    restart: always
+    restart: unless-stopped
     depends_on:
       <<: *airflow-common-depends-on
       airflow-apiserver:
@@ -234,7 +273,7 @@ services:
       timeout: 10s
       retries: 5
       start_period: 30s
-    restart: always
+    restart: unless-stopped
     depends_on:
       <<: *airflow-common-depends-on
       airflow-init:
@@ -335,7 +374,7 @@ services:
       timeout: 10s
       retries: 5
       start_period: 30s
-    restart: always
+    restart: unless-stopped
     depends_on:
       <<: *airflow-common-depends-on
       airflow-init:
@@ -351,5 +390,6 @@ services:
       - 8081
     ports:
       - "8081:8080"
+    restart: unless-stopped
 volumes:
   postgres-db-volume:
