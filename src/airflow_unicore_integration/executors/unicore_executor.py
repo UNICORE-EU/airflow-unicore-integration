@@ -124,13 +124,13 @@ class UnicoreExecutor(BaseExecutor):
     def _get_unicore_client(self, executor_config: dict | None = {}):
         overwrite_preconfigured_site = executor_config.get(  # type: ignore
             UnicoreExecutor.Executor_CONFIG_UNICORE_PRECONFIGURED_SITE_KEY, None
-        )  # task can provide a different preconfigured site to run at, else first one from config is used
+        )  # task can provide a site to run at, else use first one from config
         overwrite_unicore_site = executor_config.get(  # type: ignore
             UnicoreExecutor.EXECUTOR_CONFIG_UNICORE_SITE_KEY, None
-        )  # task can provide a different site to run at, else preconfigured site is used
+        )  # task can provide a site url to run at, else preconfigured site is used
         overwrite_unicore_credential = executor_config.get(  # type: ignore
             UnicoreExecutor.EXECUTOR_CONFIG_UNICORE_CREDENTIAL_KEY, None
-        )  # task can provide a different credential to use, else preconfigured site credential is used
+        )  # task can provide a credential to use, else use preconfigured site credential
 
         # list of sites
         # each site is a lsit of strings, containing [0] site name, [1] site url, [2] auth_token
@@ -143,21 +143,23 @@ class UnicoreExecutor(BaseExecutor):
                 if tmp[0] == overwrite_preconfigured_site:
                     site = tmp
                     break
+        self.log.info(f"using site {site[0]} to submit job.")
 
         base_url = site[1]
-        token = site[2]
+
+        token: str = self.conf.get("unicore.executor", f"SITES_TOKEN_{site[0].upper()}", "")
 
         if overwrite_unicore_credential is not None:
             token = overwrite_unicore_credential
-            self.log.debug("Using user provided token.")
+            self.log.debug("Using user provided token instead of site default.")
         credential: Credential = create_credential(token=token)
         if overwrite_unicore_site is not None:
             base_url = overwrite_unicore_site
-            self.log.debug("Using user provided site.")
+            self.log.debug("Using user provided site url instead of site default.")
         if not base_url:
             raise TypeError()
-        self.log.debug(f"Using site: {base_url}")
-        self.log.debug(f"Using credential: {credential}")
+        self.log.debug(f"Using site url: {base_url}")
+        # self.log.debug(f"Using credential: {credential}")
         conn = client.Client(credential, base_url)
         return conn
 
