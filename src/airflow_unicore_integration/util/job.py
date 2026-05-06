@@ -91,8 +91,8 @@ class NaiveJobDescriptionGenerator(JobDescriptionGenerator):
         if user_defined_python_env:
             python_env = user_defined_python_env
         else:
-            python_env = global_conf.get("unicore.executor", "DEFAULT_ENV")
-        tmp_dir = global_conf.get("unicore.executor", "TMP_DIR", "/tmp")
+            python_env = self.conf.get("unicore.executor", "DEFAULT_ENV")
+        tmp_dir = self.conf.get("unicore.executor", "TMP_DIR", "/tmp")
         # prepare dag file to be uploaded via unicore
         # dag_file = open("/tmp/test")
         # dag_content = dag_file.readlines()
