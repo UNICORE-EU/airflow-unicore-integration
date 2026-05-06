@@ -126,6 +126,9 @@ class NaiveJobDescriptionGenerator(JobDescriptionGenerator):
         # build filecontent string for importing in the job | this is needed to avoid confusing nested quotes and trying to escape them properly when using unicore env vars directly
         env_file_content: list[str] = []
 
+        # set multi-team to true, so that multi team features work on the worker node
+        env_file_content.append("export AIRFLOW__CORE__MULTI_TEAM=True")
+
         # transmit needed dag bundle information (and possibly files) to job directory
         bundle_str = global_conf.get("dag.processor", "dag_bundle_config_list")
         logger.debug(f"Dag Bundle config is: {bundle_str}")
