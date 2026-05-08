@@ -149,6 +149,8 @@ class UnicoreExecutor(BaseExecutor):
 
         token: str = self.conf.get("unicore.executor", f"SITES_TOKEN_{site[0].upper()}", "")
 
+        user_config = dict(enumerate(site)).get(2)
+
         if overwrite_unicore_credential is not None:
             token = overwrite_unicore_credential
             self.log.debug("Using user provided token instead of site default.")
@@ -161,6 +163,7 @@ class UnicoreExecutor(BaseExecutor):
         self.log.debug(f"Using site url: {base_url}")
         # self.log.debug(f"Using credential: {credential}")
         conn = client.Client(credential, base_url)
+        conn.transport.preferences = user_config
         return conn
 
     def _submit_job(self, workload: ExecuteTask):
