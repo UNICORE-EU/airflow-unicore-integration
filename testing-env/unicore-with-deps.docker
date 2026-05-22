@@ -1,0 +1,8 @@
+FROM ghcr.io/unicore-eu/unicore-testing-all:latest
+
+RUN apt update && apt install -y python3-venv
+
+
+RUN python3 -m venv /opt/venv
+
+RUN bash -c "source /opt/venv/bin/activate && pip install -U apache-airflow-task-sdk apache-airflow-providers-git pyunicore airflow-unicore-integration requests[socks] httpx[socks]"
