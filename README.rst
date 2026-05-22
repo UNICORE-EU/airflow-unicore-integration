@@ -24,21 +24,60 @@ To use the UnicoreExecutor, this library needs to be installed in your airflow e
 How to configure these settigns is up to your deployment, as it uses the standard airflow configuration mechanism.
 In case of a helm deployemnt via the official helm chart, you will need to use environment variables, as all unicore related options are not present in the chart and will cause schema-validation to fail.
 
-All options fall under the [unicore.executor] section in airflow.cfg, or have the ``AIRFLOW__UNICORE_EXECUTOR__`` prefix as an environment variable.
+All options fall under the [unicore.executor] section in airflow.cfg, or have the ``AIRFLOW__UNICORE_EXECUTOR__`` prefix as an environment variable (or formatted as ``AIRFLOW___TEAM__UNICORE_EXECUTOR__``).
 
-========================= ============================================ ===========================================================================================
-Option name               default                                      description
-========================= ============================================ ===========================================================================================
-EXECUTION_API_SERVER_URL  <The default from the airflow config>        The url to reach the airflow API server from the execution environment (e.g. compute nodes)
-AUTH_TOKEN                mandatory                                    The unicore auth token to use for job submission
-DEFAULT_URL               http://localhost:8080/DEMO-SITE/rest/core    The default unicore site to submit jobs to
-DEFAULT_ENV               mandatory                                    The default activation script for a functional airflow environment on the execution machine
-TMP_DIR                   /tmp                                         A temporary directory to store data such as GitDagBundles
-========================= ============================================ ===========================================================================================
+========================= ============================================ =========================================================================================== ============
+Option name               default                                      description                                                                                 Team scoped?
+========================= ============================================ =========================================================================================== ============
+EXECUTION_API_SERVER_URL  <The default from the airflow config>        The url to reach the airflow API server from the execution environment (e.g. compute nodes) no
+DEFAULT_ENV               mandatory                                    The default activation script for a functional airflow environment on the execution machine no
+TMP_DIR                   /tmp                                         A temporary directory to store data such as GitDagBundles                                   no
+SITES_CONFIG              mandatory                                    see below                                                                                   yes
+SITES_TOKEN_<SITE_NAME>   mandatory                                    A valid UNICORE auth token for this site                                                    yes
+SITES_PROXY_<SITE_NAME>   mandatory if proxy is enabled for this site  A urlfor the HTTP_PROXY/HTTPS_PROXY env variables (e.g. socks5://user:pass@proxy:port)      yes
+========================= ============================================ =========================================================================================== ============
 
 The default env is loaded via ``. default_env.sh``, and must enable an environment, where python is available in a suitable version, and the ``apache-airflow-task-sdk`` and ``apache-airflow-providers-git`` packages are available. All other dependencies depend on the dags to be run, but must already be included in the environment.
 
 A simple solution for this may be the "activate" script for a python venv. If the target systems requires additional commands to enable python (e.g. ``module load``), these may be added to the top of the activate script.
+
+
+SITES_CONFIG
+------------
+
+Sites config is a json string describing as preconfigured sites. It is a list of lists, where each inner lists describes a site.
+The order of the elements of the inner list is ``site_name``, ``site_url``, ``site specific user config``, ``site specific precommand``, ``use a proxy for thie site?``.
+``site_name`` and ``site_url`` must be provided, the remaining values can be left empty and will then be treated as not required or false.
+``site specific user config`` sets the User config header for the UNICORE REST API.
+
+Example::
+
+  AIRFLOW__UNICORE_EXECUTOR__SITES_CONFIG: |
+      [
+        [
+          "local",
+          "https://unicore:8080/DEMO-SITE/rest/core",
+          "group:groupname",
+          "",
+          "False"
+        ],
+        [
+          "juwels",
+          "https://unicore:8080/DEMO-SITE/rest/core",
+          "",
+          "",
+          ""
+        ],
+        [
+          "juwels-booster",
+          "https://unicore:8080/DEMO-SITE/rest/core",
+          "",
+          "activate_proxy_env_command",
+          "True"
+        ]
+      ]
+
+
 
 ---------------------------
 Using the Unicore Operators

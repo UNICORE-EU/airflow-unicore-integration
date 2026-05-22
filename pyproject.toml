@@ -7,7 +7,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "airflow-unicore-integration"
-version = "0.4.4"
+version = "0.5.0"
 authors = [
   { name="Christian Böttcher", email="c.boettcher@fz-juelich.de" },
 ]
@@ -26,7 +26,15 @@ classifiers = [
 
 dependencies = [
     "pyunicore>=1.0.0",
-    "apache-airflow>=3.2.0"
+    "apache-airflow>=3.2.0",
+    "requests[socks]",
+    "httpx[socks]"
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+    "pytest-mock>=3.6",
 ]
 
 [project.urls]

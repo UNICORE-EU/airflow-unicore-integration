@@ -163,7 +163,8 @@ class UnicoreExecutor(BaseExecutor):
         self.log.debug(f"Using site url: {base_url}")
         # self.log.debug(f"Using credential: {credential}")
         conn = client.Client(credential, base_url)
-        conn.transport.preferences = user_config
+        if user_config:
+            conn.transport.preferences = user_config
         return conn
 
     def _submit_job(self, workload: ExecuteTask):

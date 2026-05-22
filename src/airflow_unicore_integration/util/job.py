@@ -34,6 +34,7 @@ class JobDescriptionGenerator:
     )
     EXECUTOR_CONFIG_UNICORE_SITE_KEY = "unicore_site"  # alternative Unicore site to run at, only required if different than connection default
     EXECUTOR_CONFIG_UNICORE_CREDENTIAL_KEY = "unicore_credential"  # alternative unicore credential to use for the job, only required if different than connection default
+    Executor_CONFIG_UNICORE_PRECONFIGURED_SITE_KEY = "site"  # name of the preconfigured site to use , only requried if different from the default site
 
     def __init__(self, conf: AirflowSDKConfigParser) -> None:
         self.conf = conf
@@ -81,6 +82,29 @@ class NaiveJobDescriptionGenerator(JobDescriptionGenerator):
         )
         logger.debug(f"Server is {server}")
 
+        # get site specific options
+        overwrite_preconfigured_site = executor_config.get(  # type: ignore
+            JobDescriptionGenerator.Executor_CONFIG_UNICORE_PRECONFIGURED_SITE_KEY, None
+        )  # task can provide a site to run at, else use first one from config
+
+        preconfigured_sites: list[list[str]] = json.loads(
+            self.conf.get("unicore.executor", "SITES_CONFIG", "")
+        )
+
+        site = preconfigured_sites[0]
+        if overwrite_preconfigured_site is not None:
+            for tmp in preconfigured_sites:
+                if tmp[0] == overwrite_preconfigured_site:
+                    site = tmp
+                    break
+        site_specific_precommand: str = site[3]
+        using_proxy: str = site[4]
+        if using_proxy == "True":
+            logger.info("Using proxy for this task.")
+            proxy_url = self.conf.get("unicore.executor", f"SITES_PROXY_{site[0].upper()}", "")
+        else:
+            proxy_url = None
+
         # set job type
         if user_defined_job_type:
             job_descr_dict["Job type"] = user_defined_job_type
@@ -93,10 +117,7 @@ class NaiveJobDescriptionGenerator(JobDescriptionGenerator):
         else:
             python_env = self.conf.get("unicore.executor", "DEFAULT_ENV")
         tmp_dir = self.conf.get("unicore.executor", "TMP_DIR", "/tmp")
-        # prepare dag file to be uploaded via unicore
-        # dag_file = open("/tmp/test")
-        # dag_content = dag_file.readlines()
-        # dag_import = {"To": dag_rel_path, "Data": dag_content}
+
         worker_script_import = {
             "To": "run_task_via_supervisor.py",
             # "From": "https://gist.githubusercontent.com/cboettcher/3f1101a1d1b67e7944d17c02ecd69930/raw/1d90bf38199d8c0adf47a79c8840c3e3ddf57462/run_task_via_supervisor.py",
@@ -104,17 +125,15 @@ class NaiveJobDescriptionGenerator(JobDescriptionGenerator):
         }
         # start filling the actual job description
         job_descr_dict["Name"] = self.get_job_name(key)
-        job_descr_dict["Executable"] = (
-            f". airflow_config.env && . {python_env} && python run_task_via_supervisor.py --json-string '{workload.model_dump_json()}'"  # TODO may require module load to be setup for some systems
-        )
-        # job_descr_dict["Arguments"] = [
-        #    "-c",
-        #    "source airflow_config.env",
-        #    "source {python_env}/bin/activate",
-        #    "python",
-        #    "run_task_via_supervisor.py",
-        #    f"--json-string '{workload.model_dump_json()}'",
-        # ]
+        if not site_specific_precommand:
+            job_descr_dict["Executable"] = (
+                f". airflow_config.env && . {python_env} && python run_task_via_supervisor.py --json-string '{workload.model_dump_json()}'"
+            )
+        else:
+            logger.info("Using site specific command before task execution.")
+            job_descr_dict["Executable"] = (
+                f". airflow_config.env && . {python_env} && {site_specific_precommand} && python run_task_via_supervisor.py --json-string '{workload.model_dump_json()}'"
+            )
 
         job_descr_dict["Environment"] = {
             "AIRFLOW__CORE__EXECUTION_API_SERVER_URL": server,
@@ -125,6 +144,11 @@ class NaiveJobDescriptionGenerator(JobDescriptionGenerator):
 
         # build filecontent string for importing in the job | this is needed to avoid confusing nested quotes and trying to escape them properly when using unicore env vars directly
         env_file_content: list[str] = []
+
+        # set proxy variables to be used by python requests library
+        if proxy_url:
+            env_file_content.append(f"export HTTP_PROXY={proxy_url}")
+            env_file_content.append(f"export HTTPS_PROXY={proxy_url}")
 
         # set multi-team to true, so that multi team features work on the worker node
         env_file_content.append("export AIRFLOW__CORE__MULTI_TEAM=True")
@@ -162,7 +186,7 @@ class NaiveJobDescriptionGenerator(JobDescriptionGenerator):
                 job_descr_dict["Environment"][
                     "AIRFLOW__DAG_PROCESSOR__DAG_BUNDLE_STORAGE_PATH"
                 ] = f"{dag_bundle_path}"
-                logger.info(f"git precommand is {git_precommand}")
+                logger.debug(f"git precommand is {git_precommand}")
                 user_added_pre_commands.append(git_precommand)
                 # add connection to local clone to env of job
                 airflow_conn_string = json.dumps(
@@ -171,10 +195,10 @@ class NaiveJobDescriptionGenerator(JobDescriptionGenerator):
                 env_file_content.append(
                     f"export AIRFLOW_CONN_{str(conn_id_to_transmit).upper()}='{airflow_conn_string}'"
                 )
-                logger.info(f"connection is '{airflow_conn_string}'")
+                logger.debug(f"connection is '{airflow_conn_string}'")
                 # add cleanup of local git repo to job description
                 git_cleanup_command = f"rm -r {git_dir_prefix}"
-                logger.info(f"git cleanup is {git_cleanup_command}")
+                logger.debug(f"git cleanup is {git_cleanup_command}")
                 user_added_post_commands.append(git_cleanup_command)
 
         airflow_env_import = {"To": "airflow_config.env", "Data": env_file_content}
