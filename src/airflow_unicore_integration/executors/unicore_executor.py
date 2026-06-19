@@ -7,10 +7,12 @@ tasks should be allowed to overwrite SITE, CREDENTIALS_*, UNICORE_CONN_ID and DE
 
 """
 
+from __future__ import annotations
+
+import importlib
 import json
 import time
 from typing import Any
-from typing import Dict
 
 import pyunicore.client as uc_client
 from airflow.executors.base_executor import BaseExecutor
@@ -26,9 +28,8 @@ from pyunicore.credentials import create_credential
 from requests.exceptions import RequestException
 
 from ..util.job import JobDescriptionGenerator
-from ..util.job import NaiveJobDescriptionGenerator
 
-STATE_MAPPINGS: Dict[uc_client.JobStatus, TaskInstanceState] = {
+STATE_MAPPINGS: dict[uc_client.JobStatus, TaskInstanceState] = {
     uc_client.JobStatus.UNDEFINED: TaskInstanceState.FAILED,
     uc_client.JobStatus.READY: TaskInstanceState.QUEUED,
     uc_client.JobStatus.STAGINGIN: TaskInstanceState.QUEUED,
@@ -46,6 +47,10 @@ class UnicoreExecutor(BaseExecutor):
     EXECUTOR_CONFIG_UNICORE_CREDENTIAL_KEY = "unicore_credential"  # alternative unicore credential to use for the job, only required if different than connection default
     Executor_CONFIG_UNICORE_PRECONFIGURED_SITE_KEY = "site"  # name of the preconfigured site to use , only requried if different from the default site
 
+    AIRFLOW_CONFIG_JOB_DESCRIPTION_GENERATOR_CLASS_KEY = "job_description_generator_class"
+    AIRFLOW_CONFIG_JOB_DESCRIPTION_GENERATOR_DERFAULT_CLASS = (
+        "airflow_unicore_integration.util.job.NaiveJobDescriptionGenerator"
+    )
     supports_multi_team: bool = True
     # serve_logs = True
 
@@ -57,9 +62,15 @@ class UnicoreExecutor(BaseExecutor):
             self.conf = conf
 
     def start(self):
-        self.active_jobs: Dict[TaskInstanceKey, uc_client.Job] = {}
-        # TODO get job description generator class and init params from config
-        self.job_descr_generator: JobDescriptionGenerator = NaiveJobDescriptionGenerator(self.conf)
+        self.active_jobs: dict[TaskInstanceKey, uc_client.Job] = {}  # type: ignore
+
+        # get job description generator class and init params from config
+        generator_class_path: str = self.conf.get("unicore.executor", UnicoreExecutor.AIRFLOW_CONFIG_JOB_DESCRIPTION_GENERATOR_CLASS_KEY, UnicoreExecutor.AIRFLOW_CONFIG_JOB_DESCRIPTION_GENERATOR_DERFAULT_CLASS)  # type: ignore
+        module_name, class_name = generator_class_path.rsplit(".", 1)
+        configured_generator_class = getattr(importlib.import_module(module_name), class_name)
+        configured_generator_class(self.conf)
+
+        self.job_descr_generator: JobDescriptionGenerator = configured_generator_class(self.conf)  # type: ignore
 
     def _handle_used_compute_time(self, task: TaskInstanceKey, job: uc_client.Job) -> None:
         pass
@@ -178,7 +189,7 @@ class UnicoreExecutor(BaseExecutor):
         self.running_state(workload.ti.key, TaskInstanceState.QUEUED)
         return job
 
-    def _create_job_description(self, workload: ExecuteTask) -> Dict[str, Any]:
+    def _create_job_description(self, workload: ExecuteTask) -> dict[str, Any]:
         return self.job_descr_generator.create_job_description(workload)
 
     def queue_workload(self, workload: ExecuteTask | All, session):
