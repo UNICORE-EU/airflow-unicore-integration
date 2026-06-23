@@ -94,7 +94,7 @@ class JobDescriptionGenerator:
             self.job_descr["Login node"] = user_defined_login_node
 
     def add_to_env_file(self, key: str, value: str) -> None:
-        self.env_file_content.append(f"export {key.upper()}={value}")
+        self.env_file_content.append(f"export {key.upper()}='{value}'")
 
     def get_env_file_import(self) -> Dict[str, str | list[str]]:
         return {"To": self.get_env_file_name(), "Data": self.env_file_content}
