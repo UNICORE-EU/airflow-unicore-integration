@@ -298,7 +298,6 @@ class ContainerJobDescriptionGenerator(JobDescriptionGenerator):
         if not executor_config:
             executor_config = {}
         # get user config from executor_config
-        # TODO add default user image to config
         user_image: str = executor_config.get(JobDescriptionGenerator.EXECUTOR_CONFIG_IMAGE_URL_KEY, None)  # type: ignore
         user_image_type: str = executor_config.get(JobDescriptionGenerator.EXECUTOR_CONFIG_IMAGE_TYPE_KEY, None)  # type: ignore
         user_added_env: Dict[str, str] = executor_config.get(JobDescriptionGenerator.EXECUTOR_CONFIG_ENVIRONMENT, None)  # type: ignore
@@ -313,8 +312,8 @@ class ContainerJobDescriptionGenerator(JobDescriptionGenerator):
                 JobDescriptionGenerator.AIRFLOW_CONFIG_DEFAULT_IMAGE_KEY,
                 JobDescriptionGenerator.AIRFLOW_CONFIG_DEFAULT_IMAGE_DEFAULT_VALUE,
             )
-        if not user_image:
-            user_image = self.conf.get(
+        if not user_image_type:
+            user_image_type = self.conf.get(
                 JobDescriptionGenerator.CONF_SECTION,
                 JobDescriptionGenerator.AIRFLOW_CONFIG_DEFAULT_IMAGE_TYPE_KEY,
                 "docker",
