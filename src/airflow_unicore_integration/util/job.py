@@ -448,7 +448,15 @@ class ContainerJobDescriptionGenerator(JobDescriptionGenerator):
 
         self.add_import(worker_script_import)
 
-        task_cmd = f". {self.get_env_file_name()} && python run_task_via_supervisor.py --json-string '{workload.model_dump_json()}'"
+        entrypoint_script_content = f"#! /bin/bash\n. {self.get_env_file_name()}\npython run_task_via_supervisor.py --json-string '{workload.model_dump_json()}"
+
+        entrypoint_script_name = "entrypoint.sh"
+
+        entrypoint_import = {"To": entrypoint_script_name, "Data": entrypoint_script_content}
+
+        self.add_import(entrypoint_import)
+
+        # task_cmd = f". {self.get_env_file_name()} && python run_task_via_supervisor.py --json-string '{workload.model_dump_json()}'"
 
         job_image_name = "job_image.sif"
         bind_options = self.conf.get(
@@ -461,12 +469,13 @@ class ContainerJobDescriptionGenerator(JobDescriptionGenerator):
             JobDescriptionGenerator.AIRFLOW_CONFIG_CONTAINER_HOME_KEY,
             fallback="`mktemp -d`",
         )
+
         apptainer_cmd = f". {system_env}"
         if site_specific_precommand:
             apptainer_cmd = f"{apptainer_cmd} && {site_specific_precommand}"
-        apptainer_cmd = f'{apptainer_cmd} && apptainer exec --nv --bind {bind_options} --home {home} --sharens {job_image_name} bash -c "{task_cmd}"'
-        apptainer_precommand = f"apptainer build {job_image_name} {user_image_type}://{user_image}"
+        apptainer_cmd = f"{apptainer_cmd} && apptainer exec --nv --bind {bind_options} --home {home} --sharens {job_image_name} bash {entrypoint_script_name}"
 
+        apptainer_precommand = f"apptainer build {job_image_name} {user_image_type}://{user_image}"
         self.job_descr["User precommand"] = (
             f". {system_env} && bash precommand.sh && {apptainer_precommand}"
         )
