@@ -310,13 +310,13 @@ class ContainerJobDescriptionGenerator(JobDescriptionGenerator):
             user_image = self.conf.get(
                 JobDescriptionGenerator.CONF_SECTION,
                 JobDescriptionGenerator.AIRFLOW_CONFIG_DEFAULT_IMAGE_KEY,
-                JobDescriptionGenerator.AIRFLOW_CONFIG_DEFAULT_IMAGE_DEFAULT_VALUE,
+                fallback=JobDescriptionGenerator.AIRFLOW_CONFIG_DEFAULT_IMAGE_DEFAULT_VALUE,
             )
         if not user_image_type:
             user_image_type = self.conf.get(
                 JobDescriptionGenerator.CONF_SECTION,
                 JobDescriptionGenerator.AIRFLOW_CONFIG_DEFAULT_IMAGE_TYPE_KEY,
-                "docker",
+                fallback="docker",
             )
 
         # need a env to potentially run pre and postcommands
@@ -358,7 +358,7 @@ class ContainerJobDescriptionGenerator(JobDescriptionGenerator):
         self.add_to_env_file("AIRFLOW__LOGGING__LOGGING_LEVEL", "DEBUG")
         self.add_to_env_file(
             "AIRFLOW__CORE__EXECUTOR",
-            "LocalExecutor,airflow_unicore_integration.executors.unicore_executor.UnicoreExecutor",
+            "LocalExecutor,airflow_unicore_integration.executors.unicore_executor.UnicoreExecutor,KubernetesExecutor,CeleryExecutor",
         )
 
         # set proxy variables to be used by python requests library
@@ -392,7 +392,9 @@ class ContainerJobDescriptionGenerator(JobDescriptionGenerator):
                 bundle_type == NaiveJobDescriptionGenerator.GIT_DAG_BUNDLE_CLASSPATH
                 and conn_id_to_transmit
             ):
-                tmp_dir = self.conf.get(JobDescriptionGenerator.CONF_SECTION, "TMP_DIR", "/tmp")
+                tmp_dir = self.conf.get(
+                    JobDescriptionGenerator.CONF_SECTION, "TMP_DIR", fallback="/tmp"
+                )
                 git_hook = GitHook(conn_id_to_transmit)
                 git_remote_url = git_hook.repo_url
                 git_dir_prefix = f"{tmp_dir}/{workload.ti.dag_id}/{workload.ti.task_id}/{workload.ti.run_id}/{workload.ti.try_number}"
@@ -452,12 +454,12 @@ class ContainerJobDescriptionGenerator(JobDescriptionGenerator):
         bind_options = self.conf.get(
             JobDescriptionGenerator.CONF_SECTION,
             JobDescriptionGenerator.AIRFLOW_CONFIG_CONTAINER_BINDS_KEY,
-            JobDescriptionGenerator.AIRFLOW_CONFIG_CONTAINER_BINDS_DEFAULT,
+            fallback=JobDescriptionGenerator.AIRFLOW_CONFIG_CONTAINER_BINDS_DEFAULT,
         )
         home = self.conf.get(
             JobDescriptionGenerator.CONF_SECTION,
             JobDescriptionGenerator.AIRFLOW_CONFIG_CONTAINER_HOME_KEY,
-            "`mktemp -d`",
+            fallback="`mktemp -d`",
         )
         apptainer_cmd = f'. {system_env} && {site_specific_precommand} && apptainer exec --nv --bind {bind_options} --home {home} --sharens {job_image_name} bash -c "{task_cmd}"'
         apptainer_precommand = f"apptainer build {job_image_name} {user_image_type}://{user_image}"
@@ -478,4 +480,4 @@ class ContainerJobDescriptionGenerator(JobDescriptionGenerator):
 
         self.add_import(worker_script_import)
 
-        raise NotImplementedError()
+        return self.job_descr
