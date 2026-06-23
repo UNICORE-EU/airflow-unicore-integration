@@ -461,7 +461,10 @@ class ContainerJobDescriptionGenerator(JobDescriptionGenerator):
             JobDescriptionGenerator.AIRFLOW_CONFIG_CONTAINER_HOME_KEY,
             fallback="`mktemp -d`",
         )
-        apptainer_cmd = f'. {system_env} && {site_specific_precommand} && apptainer exec --nv --bind {bind_options} --home {home} --sharens {job_image_name} bash -c "{task_cmd}"'
+        apptainer_cmd = f". {system_env}"
+        if site_specific_precommand:
+            apptainer_cmd = f"{apptainer_cmd} && {site_specific_precommand}"
+        apptainer_cmd = f'{apptainer_cmd} && apptainer exec --nv --bind {bind_options} --home {home} --sharens {job_image_name} bash -c "{task_cmd}"'
         apptainer_precommand = f"apptainer build {job_image_name} {user_image_type}://{user_image}"
 
         self.job_descr["User precommand"] = (
