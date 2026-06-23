@@ -448,7 +448,7 @@ class ContainerJobDescriptionGenerator(JobDescriptionGenerator):
 
         self.add_import(worker_script_import)
 
-        entrypoint_script_content = f"#! /bin/bash\n. {self.get_env_file_name()}\npython run_task_via_supervisor.py --json-string '{workload.model_dump_json()}"
+        entrypoint_script_content = f"#! /bin/bash\n. {self.get_env_file_name()}\npython run_task_via_supervisor.py --json-string '{workload.model_dump_json()}'"
 
         entrypoint_script_name = "entrypoint.sh"
 
