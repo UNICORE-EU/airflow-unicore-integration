@@ -368,6 +368,8 @@ class ContainerJobDescriptionGenerator(JobDescriptionGenerator):
 
         # set multi-team to true, so that multi team features work on the worker node
         self.add_to_env_file("AIRFLOW__CORE__MULTI_TEAM", "True")
+        # set log folder to execution folder (i.e. job directory)
+        self.add_to_env_file("AIRFLOW__LOGGING__BASE_LOG_FOLDER", ".")
 
         # transmit needed dag bundle information (and possibly files) to job directory
         bundle_str = global_conf.get("dag.processor", "dag_bundle_config_list")
