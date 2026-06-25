@@ -68,7 +68,7 @@ class UnicoreExecutor(BaseExecutor):
         if es_host:
             self.elasticsearch = Elasticsearch(es_host)
             self.es_log_id_template = global_conf.get("elasticsearch", "log_id_template")
-            self.es_index = conf.get("elasticsearch", "index", fallback="airflow-logs")
+            self.es_index = global_conf.get("elasticsearch", "index", fallback="airflow-logs")
 
     def start(self):
         self.active_jobs: dict[TaskInstanceKey, uc_client.Job] = {}  # type: ignore
