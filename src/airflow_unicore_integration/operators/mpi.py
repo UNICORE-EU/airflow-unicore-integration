@@ -3,6 +3,7 @@ import json
 import os
 import signal
 import subprocess
+import sys
 import threading
 from typing import Callable
 from typing import Sequence
@@ -57,10 +58,25 @@ class MPIOperator(BaseOperator):
             "python",
             "-m",
             ENTRYPOINT_NAME,
-            base64.b64encode(cloudpickle.dumps(python_callable)).decode("ascii"),
+            self._serialize_callable(python_callable),
             kwargs_json,
         ]
         return cmd
+
+    @staticmethod
+    def _serialize_callable(python_callable: Callable) -> str:
+        module_name = python_callable.__module__
+        module = sys.modules.get(module_name)
+
+        if module is not None:
+            cloudpickle.register_pickle_by_value(module)
+        try:
+            payload = cloudpickle.dumps(python_callable)
+        finally:
+            if module is not None:
+                cloudpickle.unregister_pickle_by_value(module)
+
+        return base64.b64encode(payload).decode("ascii")
 
     def _run(self, cmd: list[str]) -> object:
         proc = subprocess.Popen(
