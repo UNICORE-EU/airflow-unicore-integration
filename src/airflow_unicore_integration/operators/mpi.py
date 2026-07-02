@@ -1,3 +1,4 @@
+import base64
 import json
 import os
 import signal
@@ -6,10 +7,10 @@ import threading
 from typing import Callable
 from typing import Sequence
 
+import dill
 from airflow.sdk import BaseOperator
 from airflow.sdk.definitions.context import Context
 from airflow.sdk.exceptions import AirflowException
-from dill import dumps
 
 RESULT_SENTINEL = "MPIRESULT:"
 ENTRYPOINT_NAME = "airflow_unicore_integration.util.mpi_entrypoint"
@@ -52,7 +53,13 @@ class MPIOperator(BaseOperator):
             cmd += ["--jobid", job_id]
         cmd += ["--ntasks", str(num_processes)]
         cmd += self.extra_mpi_args
-        cmd += ["python", "-m", ENTRYPOINT_NAME, dumps(python_callable), kwargs_json]
+        cmd += [
+            "python",
+            "-m",
+            ENTRYPOINT_NAME,
+            base64.b64encode(dill.dumps(python_callable)),
+            kwargs_json,
+        ]
         return cmd
 
     def _run(self, cmd: list[str]) -> object:

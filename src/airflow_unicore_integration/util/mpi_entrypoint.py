@@ -1,8 +1,9 @@
+import base64
 import inspect
 import json
 import sys
 
-from dill import loads
+import dill
 from mpi4py import MPI
 
 
@@ -10,7 +11,7 @@ def main():
     func_string = sys.argv[1]
     kwargs = json.loads(sys.argv[2]) if sys.argv[2] != "null" else {}
 
-    func = loads(func_string)
+    func = dill.loads(base64.b64decode(func_string))
     comm = MPI.COMM_WORLD
 
     if "comm" in inspect.signature(func).parameters:
