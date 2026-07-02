@@ -7,7 +7,7 @@ import threading
 from typing import Callable
 from typing import Sequence
 
-import dill
+import cloudpickle
 from airflow.sdk import BaseOperator
 from airflow.sdk.definitions.context import Context
 from airflow.sdk.exceptions import AirflowException
@@ -57,7 +57,7 @@ class MPIOperator(BaseOperator):
             "python",
             "-m",
             ENTRYPOINT_NAME,
-            base64.b64encode(dill.dumps(python_callable)).decode("ascii"),
+            base64.b64encode(cloudpickle.dumps(python_callable)).decode("ascii"),
             kwargs_json,
         ]
         return cmd
