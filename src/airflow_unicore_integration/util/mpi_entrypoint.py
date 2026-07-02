@@ -1,16 +1,16 @@
-import importlib
 import inspect
 import json
 import sys
 
+from dill import loads
 from mpi4py import MPI
 
 
 def main():
-    module_path, func_name = sys.argv[1], sys.argv[2]
-    kwargs = json.loads(sys.argv[3]) if sys.argv[3] != "null" else {}
+    func_string = sys.argv[1]
+    kwargs = json.loads(sys.argv[2]) if sys.argv[2] != "null" else {}
 
-    func = getattr(importlib.import_module(module_path), func_name)
+    func = loads(func_string)
     comm = MPI.COMM_WORLD
 
     if "comm" in inspect.signature(func).parameters:

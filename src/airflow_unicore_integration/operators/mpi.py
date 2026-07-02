@@ -9,6 +9,7 @@ from typing import Sequence
 from airflow.sdk import BaseOperator
 from airflow.sdk.definitions.context import Context
 from airflow.sdk.exceptions import AirflowException
+from dill import dumps
 
 RESULT_SENTINEL = "MPIRESULT:"
 ENTRYPOINT_NAME = "airflow_unicore_integration.util.mpi_entrypoint"
@@ -28,7 +29,6 @@ class MPIOperator(BaseOperator):
     ) -> None:
         super().__init__(**kwargs)
         self.name = name
-        self._validate_callable(python_callable)
         self.python_callable = python_callable
         self.num_processes = num_processes
         self.mpi_executable = mpi_executable
@@ -36,42 +36,23 @@ class MPIOperator(BaseOperator):
         self.op_args = op_args or []
         self.op_kwargs = op_kwargs or {}
 
-    @staticmethod
-    def _validate_callable(func: Callable):
-        """Ensure the function is importable — required since ranks
-        get it via module path, not serialization."""
-        module = getattr(func, "__module__", None)
-        name = getattr(func, "__qualname__", "")
-        if module is None or module == "__main__":
-            raise AirflowException(
-                f"@task.mpi requires an importable function. "
-                f"'{func.__name__}' is defined in __main__ or is not "
-                f"importable. Move it to a proper module on PYTHONPATH."
-            )
-        if "<locals>" in name or "<lambda>" in name:
-            raise AirflowException(
-                f"@task.mpi does not support local functions or lambdas. "
-                f"'{name}' must be a module-level function."
-            )
-
     def execute(self, context: Context):
         num_processes = int(context.get("params", {}).get("mpi_num_processes", self.num_processes))
         cmd = self._build_command(
             num_processes,
-            self.python_callable.__module__,
-            self.python_callable.__name__,
+            self.python_callable,
             json.dumps(self.op_kwargs) if self.op_kwargs else "null",
         )
         self.log.info("Launching MPI job: %s", " ".join(cmd))
         return self._run(cmd)
 
-    def _build_command(self, num_processes, module_path, func_name, kwargs_json):
+    def _build_command(self, num_processes, python_callable, kwargs_json):
         cmd = [self.mpi_executable]
         if job_id := os.environ.get("SLURM_JOB_ID"):
             cmd += ["--jobid", job_id]
         cmd += ["--ntasks", str(num_processes)]
         cmd += self.extra_mpi_args
-        cmd += ["python", "-m", ENTRYPOINT_NAME, module_path, func_name, kwargs_json]
+        cmd += ["python", "-m", ENTRYPOINT_NAME, dumps(python_callable), kwargs_json]
         return cmd
 
     def _run(self, cmd: list[str]) -> object:
