@@ -57,7 +57,7 @@ class MPIOperator(BaseOperator):
             "python",
             "-m",
             ENTRYPOINT_NAME,
-            base64.b64encode(dill.dumps(python_callable)),
+            base64.b64encode(dill.dumps(python_callable)).decode("ascii"),
             kwargs_json,
         ]
         return cmd
