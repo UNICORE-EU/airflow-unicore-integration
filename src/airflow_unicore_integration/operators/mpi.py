@@ -27,8 +27,8 @@ ENTRYPOINT_NAME = "airflow_unicore_integration.util.mpi_entrypoint"
 class MPIOperator(BaseOperator):
     def __init__(
         self,
-        name: str,
         python_callable: Callable,
+        name: str | None = None,
         num_processes: int = 1,
         mpi_executable: str = "srun",
         extra_mpi_args: list[str] | None = None,
@@ -37,7 +37,9 @@ class MPIOperator(BaseOperator):
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
-        self.name = name
+        self.name = (
+            name or kwargs.get("task_id") or getattr(python_callable, "__name__", "mpi_task")
+        )
         self.python_callable = python_callable
         self.num_processes = num_processes
         self.mpi_executable = mpi_executable
@@ -164,8 +166,8 @@ class MPIContainerOperator(MPIOperator):
 
             python_callable = f
         super().__init__(
-            name,
             python_callable,
+            name,
             num_processes,
             mpi_executable,
             extra_mpi_args,
@@ -199,27 +201,8 @@ class MPIContainerOperator(MPIOperator):
 class MPIDecoratedOperator(MPIOperator, DecoratedOperator):
     custom_operator_name = "@task.mpi"
 
-    def __init__(
-        self,
-        python_callable: Callable,
-        num_processes: int = 1,
-        name: str | None = None,
-        mpi_executable: str = "srun",
-        extra_mpi_args: list[str] | None = None,
-        func_args: Sequence | None = None,
-        func_kwargs: dict | None = None,
-        **kwargs,
-    ) -> None:
-        if name is None:
-            name = str(getattr(python_callable, "__name__", "mpi_task"))
+    def __init__(self, **kwargs) -> None:
         super().__init__(
-            name=name,
-            python_callable=python_callable,
-            num_processes=num_processes,
-            mpi_executable=mpi_executable,
-            extra_mpi_args=extra_mpi_args,
-            func_args=func_args,
-            func_kwargs=func_kwargs,
             **kwargs,
         )
 
