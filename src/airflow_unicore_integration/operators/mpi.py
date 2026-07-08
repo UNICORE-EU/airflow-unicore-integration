@@ -198,11 +198,14 @@ class MPIContainerOperator(MPIOperator):
         return cmd
 
 
-class MPIDecoratedOperator(MPIOperator, DecoratedOperator):
+class MPIDecoratedOperator(DecoratedOperator, MPIOperator):
     custom_operator_name = "@task.mpi"
 
-    def __init__(self, **kwargs) -> None:
+    def __init__(self, *, python_callable, **kwargs) -> None:
+        kwargs_to_upstream = {"python_callable": python_callable}
         super().__init__(
+            python_callable=python_callable,
+            kwargs_to_upstream=kwargs_to_upstream,
             **kwargs,
         )
 
