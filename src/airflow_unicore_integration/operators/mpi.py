@@ -29,14 +29,14 @@ class MPIOperator(BaseOperator):
         self,
         name: str,
         python_callable: Callable,
-        num_processes: int,
+        num_processes: int = 1,
         mpi_executable: str = "srun",
         extra_mpi_args: list[str] | None = None,
         func_args: Sequence | None = None,
         func_kwargs: dict | None = None,
         **kwargs,
     ) -> None:
-        super().__init__(**kwargs)
+        super().__init__(name=name, python_callable=python_callable, **kwargs)
         self.name = name
         self.python_callable = python_callable
         self.num_processes = num_processes
@@ -144,7 +144,7 @@ class MPIContainerOperator(MPIOperator):
         self,
         name: str,
         container_image: str,
-        num_processes: int,
+        num_processes: int = 1,
         python_callable: Callable | None = None,
         container_cmd: str | None = None,
         mpi_executable: str = "srun",
