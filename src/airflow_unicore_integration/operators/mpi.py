@@ -36,7 +36,7 @@ class MPIOperator(BaseOperator):
         func_kwargs: dict | None = None,
         **kwargs,
     ) -> None:
-        super().__init__(name=name, python_callable=python_callable, **kwargs)
+        super().__init__(**kwargs)
         self.name = name
         self.python_callable = python_callable
         self.num_processes = num_processes
@@ -201,15 +201,17 @@ class MPIDecoratedOperator(MPIOperator, DecoratedOperator):
 
     def __init__(
         self,
-        name: str,
         python_callable: Callable,
-        num_processes: int,
+        num_processes: int = 1,
+        name: str | None = None,
         mpi_executable: str = "srun",
         extra_mpi_args: list[str] | None = None,
         func_args: Sequence | None = None,
         func_kwargs: dict | None = None,
         **kwargs,
     ) -> None:
+        if name is None:
+            name = str(getattr(python_callable, "__name__", "mpi_task"))
         super().__init__(
             name=name,
             python_callable=python_callable,
