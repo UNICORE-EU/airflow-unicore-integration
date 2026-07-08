@@ -211,13 +211,13 @@ class MPIDecoratedOperator(MPIOperator, DecoratedOperator):
         **kwargs,
     ) -> None:
         super().__init__(
-            name,
-            python_callable,
-            num_processes,
-            mpi_executable,
-            extra_mpi_args,
-            func_args,
-            func_kwargs,
+            name=name,
+            python_callable=python_callable,
+            num_processes=num_processes,
+            mpi_executable=mpi_executable,
+            extra_mpi_args=extra_mpi_args,
+            func_args=func_args,
+            func_kwargs=func_kwargs,
             **kwargs,
         )
 
