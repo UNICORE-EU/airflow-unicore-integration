@@ -32,6 +32,8 @@ class MPIOperator(BaseOperator):
         num_processes: int = 1,
         mpi_executable: str = "srun",
         extra_mpi_args: list[str] | None = None,
+        op_args: Sequence | None = None,
+        op_kwargs: dict | None = None,
         func_args: Sequence | None = None,
         func_kwargs: dict | None = None,
         **kwargs,
@@ -44,8 +46,8 @@ class MPIOperator(BaseOperator):
         self.num_processes = num_processes
         self.mpi_executable = mpi_executable
         self.extra_mpi_args = extra_mpi_args or []
-        self.func_args = func_args or []
-        self.func_kwargs = func_kwargs or {}
+        self.func_args = func_args or op_args or []
+        self.func_kwargs = func_kwargs or op_kwargs or {}
 
     def execute(self, context: Context):
         num_processes = int(context.get("params", {}).get("mpi_num_processes", self.num_processes))
@@ -201,10 +203,16 @@ class MPIContainerOperator(MPIOperator):
 class MPIDecoratedOperator(DecoratedOperator, MPIOperator):
     custom_operator_name = "@task.mpi"
 
-    def __init__(self, *, python_callable, **kwargs) -> None:
-        kwargs_to_upstream = {"python_callable": python_callable}
+    def __init__(self, *, python_callable, op_args, op_kwargs, **kwargs) -> None:
+        kwargs_to_upstream = {
+            "python_callable": python_callable,
+            "op_args": op_args,
+            "op_kwargs": op_kwargs,
+        }
         super().__init__(
             python_callable=python_callable,
+            op_args=op_args,
+            op_kwargs=op_kwargs,
             kwargs_to_upstream=kwargs_to_upstream,
             **kwargs,
         )
