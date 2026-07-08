@@ -29,7 +29,9 @@ dependencies = [
     "apache-airflow>=3.2.0",
     "requests[socks]",
     "httpx[socks]",
-    "elasticsearch"
+    "elasticsearch",
+    "mpi4py",
+    "cloudpickle"
 ]
 
 [project.optional-dependencies]

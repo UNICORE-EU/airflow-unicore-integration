@@ -13,4 +13,10 @@ def get_provider_info():
         "executors": [
             "airflow_unicore_integration.executors.unicore_executor.UnicoreExecutor",
         ],
+        "task-decorators": [
+            {
+                "name": "mpi",
+                "class-name": "airflow_unicore_integration.operators.mpi.mpi_task",
+            }
+        ],
     }
