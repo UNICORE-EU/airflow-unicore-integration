@@ -142,8 +142,6 @@ class MPIOperator(BaseOperator):
 
 class MPIContainerOperator(MPIOperator):
 
-    DEFAULT_BIND_OPTIONS = "/p:/p,/dev/shm:/dev/shm,/cvmfs:/cvmfs"
-
     def __init__(
         self,
         name: str,
@@ -155,7 +153,7 @@ class MPIContainerOperator(MPIOperator):
         extra_mpi_args: list[str] | None = None,
         func_args: Sequence | None = None,
         func_kwargs: dict | None = None,
-        apptainer_options: str = f"--nv --sharens --home `mktemp -d` --bind {DEFAULT_BIND_OPTIONS}",
+        apptainer_options: list[str] = [],
         **kwargs,
     ) -> None:
 
@@ -182,12 +180,23 @@ class MPIContainerOperator(MPIOperator):
         self.apptainer_options = apptainer_options
 
     def _build_command(self, num_processes, python_callable, kwargs_json):
+        import tempfile
+
+        if not self.apptainer_options:
+            self.apptainer_options = [
+                "--nv",
+                "--sharens",
+                f"--home {tempfile.mkdtemp()}",
+                "--bind /p:/p,/dev/shm:/dev/shm,/cvmfs:/cvmfs",
+            ]
         cmd = [self.mpi_executable]
         if job_id := os.environ.get("SLURM_JOB_ID"):
             cmd += ["--jobid", job_id]
         cmd += ["--ntasks", str(num_processes)]
         cmd += self.extra_mpi_args
-        cmd += ["apptainer", "exec", self.apptainer_options, self.container_image]
+        cmd += ["apptainer", "exec"]
+        cmd += self.apptainer_options
+        cmd += [self.container_image]
         if self.container_cmd is None:
             self.container_cmd = [
                 "python",
