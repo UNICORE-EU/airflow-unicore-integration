@@ -168,13 +168,13 @@ class MPIContainerOperator(MPIOperator):
 
             python_callable = f
         super().__init__(
-            python_callable,
-            name,
-            num_processes,
-            mpi_executable,
-            extra_mpi_args,
-            func_args,
-            func_kwargs,
+            python_callable=python_callable,
+            name=name,
+            num_processes=num_processes,
+            mpi_executable=mpi_executable,
+            extra_mpi_args=extra_mpi_args,
+            func_args=func_args,
+            func_kwargs=func_kwargs,
             **kwargs,
         )
         self.container_image = container_image
