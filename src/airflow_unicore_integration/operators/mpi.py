@@ -186,8 +186,10 @@ class MPIContainerOperator(MPIOperator):
             self.apptainer_options = [
                 "--nv",
                 "--sharens",
-                f"--home {tempfile.mkdtemp()}",
-                "--bind /p:/p,/dev/shm:/dev/shm,/cvmfs:/cvmfs",
+                "--home",
+                f"{tempfile.mkdtemp()}",
+                "--bind",
+                "/p:/p,/dev/shm:/dev/shm,/cvmfs:/cvmfs",
             ]
         cmd = [self.mpi_executable]
         if job_id := os.environ.get("SLURM_JOB_ID"):
