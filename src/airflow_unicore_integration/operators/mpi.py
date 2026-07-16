@@ -132,10 +132,7 @@ class MPIOperator(BaseOperator):
             )
 
         if result_encoded is None:
-            raise AirflowException(
-                "MPI job completed successfully but rank 0 produced no result. "
-                "Ensure the function returns a value on rank 0."
-            )
+            return None
 
         return json.loads(result_encoded)
 
@@ -148,8 +145,9 @@ class MPIContainerOperator(MPIOperator):
         container_image: str,
         num_processes: int = 1,
         python_callable: Callable | None = None,
-        container_cmd: str | None = None,
+        container_cmd: list[str] | None = None,
         mpi_executable: str = "srun",
+        python_executable: str | None = "python3",
         extra_mpi_args: list[str] | None = None,
         func_args: Sequence | None = None,
         func_kwargs: dict | None = None,
@@ -178,6 +176,7 @@ class MPIContainerOperator(MPIOperator):
         self.container_image = container_image
         self.container_cmd = container_cmd
         self.apptainer_options = apptainer_options
+        self.python_executable = python_executable
 
     def _build_command(self, num_processes, python_callable, kwargs_json):
         import tempfile
@@ -201,7 +200,7 @@ class MPIContainerOperator(MPIOperator):
         cmd += [self.container_image]
         if self.container_cmd is None:
             self.container_cmd = [
-                "python",
+                self.python_executable,
                 "-m",
                 ENTRYPOINT_NAME,
                 self._serialize_callable(python_callable),
