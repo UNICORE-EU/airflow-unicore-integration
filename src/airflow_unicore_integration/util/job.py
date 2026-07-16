@@ -59,11 +59,12 @@ class JobDescriptionGenerator:
     def create_job_description(self, workload: ExecuteTask) -> Dict[str, Any]:
         raise NotImplementedError()
 
-    def get_job_name(self, key: TaskInstanceKey) -> str:
+    @staticmethod
+    def get_job_name(key: TaskInstanceKey) -> str:
         return f"{key.dag_id} - {key.task_id} - {key.run_id} - {key.try_number}"
 
     def set_job_name(self, key: TaskInstanceKey) -> None:
-        self.job_descr["Name"] = self.get_job_name(key)
+        self.job_descr["Name"] = JobDescriptionGenerator.get_job_name(key)
 
     def get_site(self, executor_config) -> list[str]:
         # get site specific options
@@ -197,6 +198,8 @@ class NaiveJobDescriptionGenerator(JobDescriptionGenerator):
 
         # set multi-team to true, so that multi team features work on the worker node
         self.add_to_env_file("AIRFLOW__CORE__MULTI_TEAM", "True")
+        # allow longer timeout timings for hpc jobs
+        self.add_to_env_file("AIRFLOW__WORKERS__EXECUTION_API_TIMEOUT", "20")
 
         # transmit needed dag bundle information (and possibly files) to job directory
         bundle_str = global_conf.get("dag.processor", "dag_bundle_config_list")
@@ -368,6 +371,8 @@ class ContainerJobDescriptionGenerator(JobDescriptionGenerator):
 
         # set multi-team to true, so that multi team features work on the worker node
         self.add_to_env_file("AIRFLOW__CORE__MULTI_TEAM", "True")
+        # allow longer timeout timings for hpc jobs
+        self.add_to_env_file("AIRFLOW__WORKERS__EXECUTION_API_TIMEOUT", "20")
         # set log folder to execution folder (i.e. job directory)
         self.add_to_env_file("AIRFLOW__LOGGING__BASE_LOG_FOLDER", ".")
 
