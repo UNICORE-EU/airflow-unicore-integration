@@ -1,9 +1,12 @@
+from __future__ import annotations
+
 import base64
 import json
 import os
 import signal
 import subprocess
 import sys
+import tempfile
 import threading
 from typing import TYPE_CHECKING
 from typing import Callable
@@ -28,7 +31,6 @@ class MPIOperator(BaseOperator):
     def __init__(
         self,
         python_callable: Callable,
-        name: str | None = None,
         num_processes: int = 1,
         mpi_executable: str = "srun",
         extra_mpi_args: list[str] | None = None,
@@ -39,9 +41,6 @@ class MPIOperator(BaseOperator):
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
-        self.name = (
-            name or kwargs.get("task_id") or getattr(python_callable, "__name__", "mpi_task")
-        )
         self.python_callable = python_callable
         self.num_processes = num_processes
         self.mpi_executable = mpi_executable
@@ -51,15 +50,16 @@ class MPIOperator(BaseOperator):
 
     def execute(self, context: Context):
         num_processes = int(context.get("params", {}).get("mpi_num_processes", self.num_processes))
+        payload = {"args": list(self.func_args), "kwargs": dict(self.func_kwargs)}
         cmd = self._build_command(
             num_processes,
             self.python_callable,
-            json.dumps(self.func_kwargs) if self.func_kwargs else "null",
+            json.dumps(payload),
         )
         self.log.info("Launching MPI job: %s", " ".join(cmd))
         return self._run(cmd)
 
-    def _build_command(self, num_processes, python_callable, kwargs_json):
+    def _build_command(self, num_processes, python_callable, payload_json):
         cmd = [self.mpi_executable]
         if job_id := os.environ.get("SLURM_JOB_ID"):
             cmd += ["--jobid", job_id]
@@ -70,7 +70,7 @@ class MPIOperator(BaseOperator):
             "-m",
             ENTRYPOINT_NAME,
             self._serialize_callable(python_callable),
-            kwargs_json,
+            payload_json,
         ]
         return cmd
 
@@ -141,23 +141,23 @@ class MPIContainerOperator(MPIOperator):
 
     def __init__(
         self,
-        name: str,
         container_image: str,
         num_processes: int = 1,
         python_callable: Callable | None = None,
         container_cmd: list[str] | None = None,
         mpi_executable: str = "srun",
-        python_executable: str | None = "python3",
+        python_executable: str = "python3",
         extra_mpi_args: list[str] | None = None,
         func_args: Sequence | None = None,
         func_kwargs: dict | None = None,
-        apptainer_options: list[str] = [],
+        apptainer_options: list[str] | None = None,
         **kwargs,
     ) -> None:
 
         if python_callable is None:
             if container_cmd is None:
                 raise ValueError("No command or callable provided for this Operator to execute.")
+            # TODO can try to use container default entrypoint here
 
             def f():
                 pass
@@ -165,7 +165,6 @@ class MPIContainerOperator(MPIOperator):
             python_callable = f
         super().__init__(
             python_callable=python_callable,
-            name=name,
             num_processes=num_processes,
             mpi_executable=mpi_executable,
             extra_mpi_args=extra_mpi_args,
@@ -178,35 +177,42 @@ class MPIContainerOperator(MPIOperator):
         self.apptainer_options = apptainer_options
         self.python_executable = python_executable
 
-    def _build_command(self, num_processes, python_callable, kwargs_json):
-        import tempfile
+    def _get_mpi_version(self) -> str:
+        # TODO
+        return ""
 
-        if not self.apptainer_options:
-            self.apptainer_options = [
-                "--nv",
-                "--sharens",
-                "--home",
-                f"{tempfile.mkdtemp()}",
-                "--bind",
-                "/p:/p,/dev/shm:/dev/shm,/cvmfs:/cvmfs",
-            ]
+    def _build_command(self, num_processes, python_callable, payload_json):
+        # Jülich defaults kept – compute options locally without mutating the instance
+        # TODO use more general defaults and/ or derive defaults from some config entry
+        options = self.apptainer_options or [
+            "--nv",
+            "--sharens",
+            "--home",
+            f"{tempfile.mkdtemp()}",
+            "--bind",
+            "/p:/p,/dev/shm:/dev/shm,/cvmfs:/cvmfs",
+        ]
         cmd = [self.mpi_executable]
         if job_id := os.environ.get("SLURM_JOB_ID"):
             cmd += ["--jobid", job_id]
         cmd += ["--ntasks", str(num_processes)]
         cmd += self.extra_mpi_args
         cmd += ["apptainer", "exec"]
-        cmd += self.apptainer_options
+        cmd += options
         cmd += [self.container_image]
-        if self.container_cmd is None:
-            self.container_cmd = [
+        # TODO if neither container_cmd nor python_callable, use container entrypoint
+        container_cmd = (
+            self.container_cmd
+            if self.container_cmd is not None
+            else [
                 self.python_executable,
                 "-m",
                 ENTRYPOINT_NAME,
                 self._serialize_callable(python_callable),
-                kwargs_json,
+                payload_json,
             ]
-        cmd += self.container_cmd
+        )
+        cmd += container_cmd
         return cmd
 
 
@@ -230,7 +236,7 @@ class MPIDecoratedOperator(DecoratedOperator, MPIOperator):
 
 def mpi_task(
     python_callable: Callable | None = None, multiple_outputs: bool | None = None, **kwargs
-) -> "TaskDecorator":
+) -> TaskDecorator:
     return task_decorator_factory(
         python_callable=python_callable,
         multiple_outputs=multiple_outputs,

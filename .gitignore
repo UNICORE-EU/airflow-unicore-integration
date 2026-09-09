@@ -3,6 +3,7 @@ project-dir/config
 project-dir/logs
 project-dir/plugins
 project-dir/tmp_dags
+project-dir/dags
 **venv**
 airflow.sh
 uc_default.json

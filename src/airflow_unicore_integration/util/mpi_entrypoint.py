@@ -9,7 +9,9 @@ from mpi4py import MPI
 
 def main():
     func_string = sys.argv[1]
-    kwargs = json.loads(sys.argv[2]) if sys.argv[2] != "null" else {}
+    payload = json.loads(sys.argv[2]) if sys.argv[2] not in (None, "", "null") else {}
+    args = payload.get("args", [])
+    kwargs = payload.get("kwargs", {})
 
     func = cloudpickle.loads(base64.b64decode(func_string.encode("ascii")))
     comm = MPI.COMM_WORLD
@@ -17,7 +19,7 @@ def main():
     if "comm" in inspect.signature(func).parameters:
         kwargs["comm"] = comm
 
-    result = func(**kwargs)
+    result = func(*args, **kwargs)
 
     comm.Barrier()
 
