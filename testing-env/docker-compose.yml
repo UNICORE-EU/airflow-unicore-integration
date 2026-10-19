@@ -69,6 +69,7 @@ x-airflow-common:
     AIRFLOW__CORE__EXECUTION_API_SERVER_URL: 'http://airflow-apiserver:8080/execution/'
     AIRFLOW__CORE__MULTI_TEAM: 'false'
     AIRFLOW__UNICORE_EXECUTOR__EXECUTION_API_SERVER_URL: 'http://airflow-apiserver:8080/execution/'
+    AIRFLOW__UNICORE_EXECUTOR__JOB_DESCRIPTION_GENERATOR_CLASS: 'airflow_unicore_integration.util.job.NaiveJobDescriptionGenerator'
     AIRFLOW__UNICORE_EXECUTOR__SITES_CONFIG: |
       [
         [
@@ -94,7 +95,7 @@ x-airflow-common:
         ]
       ]
 
-    AIRFLOW__UNICORE_EXECUTOR__SITES_TOKEN_LOCAL: "eyJhbGciOiJSUzI1NiJ9.eyJzdWIiOiJDTj1EZW1vIFVzZXIsIE89VU5JQ09SRSwgQz1FVSIsImF1ZCI6IkNOPVVOSUNPUkVYLE89VU5JQ09SRSxDPUVVIiwiZXRkIjoidHJ1ZSIsImlzcyI6IkNOPVVOSUNPUkVYLE89VU5JQ09SRSxDPUVVIiwiZXhwIjoxNzc5NzE1ODgwLCJpYXQiOjE3NzkzNTU4ODB9.nCKL7wrpDw-4oRkUAVfC-YFLsEzeBobFVGzLDy5v8lT7JA1Wyre5a2YG0GiT42ySFeEJeRLZikDakQpOQHxAa3al7F5nKct5E3H-Yf-GdJQln8-shtbPAp1uzms8mocPZXrxPdT8sjkH_k3sRSL0mt6m_qDpcQNDNLC28yNDujoaDF_sF3VJY9PgYbeIMMHsI5Us5Bv18JWUjzVi92p55TJ6tiyvI_xO29XrxGCM6uZWjUOsruh6tsrQAs9g9XtyQvsE7TRtfwhTUAcFFDbU7ZScWjvJ8gmWPteI5odkiSuxhDrUY3jKRaCaaxXhN5UNikLTl4aBrDfwQOXI9bFxsA"
+    AIRFLOW__UNICORE_EXECUTOR__SITES_TOKEN_LOCAL: "eyJhbGciOiJSUzI1NiJ9.eyJzdWIiOiJDTj1EZW1vIFVzZXIsIE89VU5JQ09SRSwgQz1FVSIsImF1ZCI6IkNOPVVOSUNPUkVYLE89VU5JQ09SRSxDPUVVIiwiZXRkIjoidHJ1ZSIsInJlbmV3YWJsZSI6InRydWUiLCJpc3MiOiJDTj1VTklDT1JFWCxPPVVOSUNPUkUsQz1FVSIsImV4cCI6MjA5OTMwMDkwNSwiaWF0IjoxNzgzOTQwOTA1fQ.AbSzDqYyNJiGH7OvLfTghdxzW6ADt8TmSeFt4qq2BXUskULjbnhXZVdOjrdwiZX1_4eBzqhNAWB8J1jPrCPPjOITkt9rXSV61rL1ojcAqKDkDuoq84gh2itukpN-eynKTha7Zadz-hk_nZlulBLw7VTOYRDjdoyb8-kwU4rv2T6N-RtCZ6_4ehWShou0MC2dcsiEIC45HtKa2GGWmEyscZVOF-2nkqsi3QojzW_yEZrhjS9CxyE7iSjbTxfRSnsgtkyDvbvDtqp4ZTaB4ncp8Q8Tz1Rtwu5H_I73CtJ5GWVNQjbJEkCEBMMvMHqryDw7XaEklXJjTs5FRyFhpw1nvw"
     AIRFLOW__UNICORE_EXECUTOR__SITES_TOKEN_JUWELS: "eyJhbGciOiJSUzI1NiJ9.eyJzdWIiOiJDTj1EZW1vIFVzZXIsIE89VU5JQ09SRSwgQz1FVSIsImF1ZCI6IkNOPVVOSUNPUkVYLE89VU5JQ09SRSxDPUVVIiwiZXRkIjoidHJ1ZSIsImlzcyI6IkNOPVVOSUNPUkVYLE89VU5JQ09SRSxDPUVVIiwiZXhwIjoxNzc5NzE1ODgwLCJpYXQiOjE3NzkzNTU4ODB9.nCKL7wrpDw-4oRkUAVfC-YFLsEzeBobFVGzLDy5v8lT7JA1Wyre5a2YG0GiT42ySFeEJeRLZikDakQpOQHxAa3al7F5nKct5E3H-Yf-GdJQln8-shtbPAp1uzms8mocPZXrxPdT8sjkH_k3sRSL0mt6m_qDpcQNDNLC28yNDujoaDF_sF3VJY9PgYbeIMMHsI5Us5Bv18JWUjzVi92p55TJ6tiyvI_xO29XrxGCM6uZWjUOsruh6tsrQAs9g9XtyQvsE7TRtfwhTUAcFFDbU7ZScWjvJ8gmWPteI5odkiSuxhDrUY3jKRaCaaxXhN5UNikLTl4aBrDfwQOXI9bFxsA"
     AIRFLOW__UNICORE_EXECUTOR__SITES_TOKEN_JUWELS-BOOSTER: "eyJhbGciOiJSUzI1NiJ9.eyJzdWIiOiJDTj1EZW1vIFVzZXIsIE89VU5JQ09SRSwgQz1FVSIsImF1ZCI6IkNOPVVOSUNPUkVYLE89VU5JQ09SRSxDPUVVIiwiZXRkIjoidHJ1ZSIsImlzcyI6IkNOPVVOSUNPUkVYLE89VU5JQ09SRSxDPUVVIiwiZXhwIjoxNzc5NzE1ODgwLCJpYXQiOjE3NzkzNTU4ODB9.nCKL7wrpDw-4oRkUAVfC-YFLsEzeBobFVGzLDy5v8lT7JA1Wyre5a2YG0GiT42ySFeEJeRLZikDakQpOQHxAa3al7F5nKct5E3H-Yf-GdJQln8-shtbPAp1uzms8mocPZXrxPdT8sjkH_k3sRSL0mt6m_qDpcQNDNLC28yNDujoaDF_sF3VJY9PgYbeIMMHsI5Us5Bv18JWUjzVi92p55TJ6tiyvI_xO29XrxGCM6uZWjUOsruh6tsrQAs9g9XtyQvsE7TRtfwhTUAcFFDbU7ZScWjvJ8gmWPteI5odkiSuxhDrUY3jKRaCaaxXhN5UNikLTl4aBrDfwQOXI9bFxsA"
     AIRFLOW__UNICORE_EXECUTOR__SITES_PROXY_JUWELS-BOOSTER: "socks5h://socks5-hippo:k6EPn6d0APS0HsV3uGiu@134.94.199.73:7020"
@@ -112,41 +113,14 @@ x-airflow-common:
     AIRFLOW__DAG_PROCESSOR__DAG_BUNDLE_CONFIG_LIST: |
       [
         {
-          "name": "hippo-dags-bundle",
-          "classpath": "airflow.providers.git.bundles.git.GitDagBundle",
+          "name": "local-dags",
+          "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle",
           "kwargs": {
-            "git_conn_id": "hippo_dags_conn",
-            "subdir": "dags",
-            "tracking_ref": "main",
-            "refresh_interval": 10
-          }
-        },
-        {
-          "name": "airflow-unicore-development-dags-bundle",
-          "classpath": "airflow.providers.git.bundles.git.GitDagBundle",
-          "kwargs": {
-            "git_conn_id": "airflow_unicore_development_dags_conn",
-            "subdir": "dags",
-            "tracking_ref": "main",
-            "refresh_interval": 7
+            "path": "/opt/airflow/dags",
+            "refresh_interval": 30
           }
         }
       ]
-    AIRFLOW_CONN_AIRFLOW_UNICORE_DEVELOPMENT_DAGS_CONN: |
-      {
-        "conn_type": "git",
-        "login": "airflow-git-sync",
-        "password": "QB5lCr68wt5CXAtiCZEnN286MQp1OjRhMgk.01.0z0lakizk",
-        "host": "https://gitlab.jsc.fz-juelich.de/hippo/airflow-unicore-development-dags.git"
-      }
-
-    AIRFLOW_CONN_HIPPO_DAGS_CONN: |
-      {
-        "conn_type": "git",
-        "login": "airflow-git-sync",
-        "password": "qg2JfxYJQEa8yvKY-XgVXG86MQp1OjQ5egk.01.0z0hette6",
-        "host": "https://gitlab.jsc.fz-juelich.de/gislason1/hippo_dags.git"
-      }
 
     # yamllint disable rule:line-length
     # Use simple http server on scheduler for health checks

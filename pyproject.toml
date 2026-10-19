@@ -28,10 +28,7 @@ dependencies = [
     "pyunicore>=1.0.0",
     "apache-airflow>=3.2.0",
     "requests[socks]",
-    "httpx[socks]",
-    "elasticsearch",
-    "mpi4py",
-    "cloudpickle"
+    "httpx[socks]"
 ]
 
 [project.optional-dependencies]

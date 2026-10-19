@@ -12,8 +12,6 @@ from __future__ import annotations
 import importlib
 import json
 import time
-from datetime import datetime
-from datetime import timezone
 from typing import Any
 
 import pyunicore.client as uc_client
@@ -21,10 +19,7 @@ from airflow.executors.base_executor import BaseExecutor
 from airflow.executors.workloads import All
 from airflow.executors.workloads import ExecuteTask
 from airflow.models.taskinstancekey import TaskInstanceKey
-from airflow.providers.common.compat.sdk import conf as global_conf
 from airflow.utils.state import TaskInstanceState
-from elasticsearch import Elasticsearch
-from elasticsearch import helpers
 from pyunicore import client
 from pyunicore.credentials import AuthenticationFailedException
 from pyunicore.credentials import Credential
@@ -64,11 +59,6 @@ class UnicoreExecutor(BaseExecutor):
             from airflow.sdk import conf
 
             self.conf = conf
-        es_host = global_conf.get("elasticsearch", "host", fallback=None)
-        if es_host:
-            self.elasticsearch = Elasticsearch(es_host)
-            self.es_log_id_template = global_conf.get("elasticsearch", "log_id_template")
-            self.es_index = global_conf.get("elasticsearch", "index", fallback="airflow-logs")
 
     def start(self):
         self.active_jobs: dict[TaskInstanceKey, uc_client.Job] = {}  # type: ignore
@@ -76,10 +66,9 @@ class UnicoreExecutor(BaseExecutor):
         # get job description generator class and init params from config
         generator_class_path: str = self.conf.get("unicore.executor", UnicoreExecutor.AIRFLOW_CONFIG_JOB_DESCRIPTION_GENERATOR_CLASS_KEY, UnicoreExecutor.AIRFLOW_CONFIG_JOB_DESCRIPTION_GENERATOR_DERFAULT_CLASS)  # type: ignore
         module_name, class_name = generator_class_path.rsplit(".", 1)
-        configured_generator_class = getattr(importlib.import_module(module_name), class_name)
-        configured_generator_class(self.conf)
+        self.configured_generator_class = getattr(importlib.import_module(module_name), class_name)
 
-        self.job_descr_generator: JobDescriptionGenerator = configured_generator_class(self.conf)  # type: ignore
+        self.job_descr_generator: JobDescriptionGenerator = self.configured_generator_class(self.conf)  # type: ignore
 
     def _handle_used_compute_time(self, task: TaskInstanceKey, job: uc_client.Job) -> None:
         pass
@@ -87,54 +76,22 @@ class UnicoreExecutor(BaseExecutor):
     def sync(self) -> None:
         # iterate through task collection and update task/ job status - delete if needed
         for task, job in list(self.active_jobs.items()):
+            # TODO if unicore job is still running, but airflow reports failed, success or up_for_retry,
+            # kill the still running job to prevent resource consumption
             state = STATE_MAPPINGS[job.status]
             if state == TaskInstanceState.FAILED:
                 self.fail(task)
                 self.active_jobs.pop(task)
-                self._upload_task_log(task, job)
                 self._handle_used_compute_time(task, job)
             elif state == TaskInstanceState.SUCCESS:
                 self.success(task)
                 self.active_jobs.pop(task)
-                self._upload_task_log(task, job)
                 self._handle_used_compute_time(task, job)
             elif state == TaskInstanceState.QUEUED:
                 # self.running_state(task, state)
                 pass
 
         return super().sync()
-
-    def _upload_task_log(self, ti: TaskInstanceKey, job: uc_client.Job):
-        if not self.elasticsearch:
-            # no log upload possible
-            return
-        unicore_logs = job.properties["log"]  # type: ignore
-        working_dir = job.working_dir
-        task_log_path = f"dag_id={ti.dag_id}/run_id={ti.run_id}/task_id={ti.task_id}/attempt={ti.try_number}.log"
-        task_log = working_dir.stat(task_log_path).raw().read().decode("utf-8").split("\n")  # type: ignore
-
-        records = []
-
-        for line in task_log:
-            if line:
-                records.append(json.loads(line))
-
-        for line in unicore_logs:
-            records.append(
-                {
-                    "@timestamp": datetime.now(timezone.utc).isoformat(),
-                    "message": line,
-                    "level": "debug",
-                    "dag_id": ti.dag_id,
-                    "task_id": ti.task_id,
-                    "run_id": ti.run_id,
-                    "try_number": ti.try_number,
-                }
-            )
-
-        helpers.bulk(self.elasticsearch, [{"_index": self.es_index, "_source": r} for r in records])
-
-    # 51
 
     def get_task_log(self, ti: TaskInstanceKey, try_number: int) -> tuple[list[str], list[str]]:
         # if task is still active, no neeed to check other jobs for match
@@ -165,7 +122,7 @@ class UnicoreExecutor(BaseExecutor):
         # check 50 jobs at a time to prevent server from not returning some jobs
         offset = 0
         number = 50
-        job_name = self.job_descr_generator.get_job_name(key)
+        job_name = self.configured_generator_class.get_job_name(key)
         while True:
             partial_job_list = unicore_client.get_jobs(offset=offset, num=number)
             if len(partial_job_list) == 0:
@@ -233,7 +190,7 @@ class UnicoreExecutor(BaseExecutor):
         return job
 
     def _create_job_description(self, workload: ExecuteTask) -> dict[str, Any]:
-        return self.job_descr_generator.create_job_description(workload)
+        return self.configured_generator_class(self.conf).create_job_description(workload)
 
     def queue_workload(self, workload: ExecuteTask | All, session):
         if not isinstance(workload, ExecuteTask):
