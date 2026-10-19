@@ -60,15 +60,13 @@ class UnicoreExecutor(BaseExecutor):
 
             self.conf = conf
 
-    def start(self):
-        self.active_jobs: dict[TaskInstanceKey, uc_client.Job] = {}  # type: ignore
-
         # get job description generator class and init params from config
         generator_class_path: str = self.conf.get("unicore.executor", UnicoreExecutor.AIRFLOW_CONFIG_JOB_DESCRIPTION_GENERATOR_CLASS_KEY, UnicoreExecutor.AIRFLOW_CONFIG_JOB_DESCRIPTION_GENERATOR_DERFAULT_CLASS)  # type: ignore
         module_name, class_name = generator_class_path.rsplit(".", 1)
         self.configured_generator_class = getattr(importlib.import_module(module_name), class_name)
 
-        self.job_descr_generator: JobDescriptionGenerator = self.configured_generator_class(self.conf)  # type: ignore
+    def start(self):
+        self.active_jobs: dict[TaskInstanceKey, uc_client.Job] = {}  # type: ignore
 
     def _handle_used_compute_time(self, task: TaskInstanceKey, job: uc_client.Job) -> None:
         pass
@@ -122,11 +120,7 @@ class UnicoreExecutor(BaseExecutor):
         # check 50 jobs at a time to prevent server from not returning some jobs
         offset = 0
         number = 50
-        # Use the configured generator class if available; otherwise fall back to the instance generator
-        if hasattr(self, "configured_generator_class"):
-            job_name = self.configured_generator_class.get_job_name(key)
-        else:
-            job_name = self.job_descr_generator.get_job_name(key)
+        job_name = self.configured_generator_class.get_job_name(key)
         while True:
             partial_job_list = unicore_client.get_jobs(offset=offset, num=number)
             if len(partial_job_list) == 0:
@@ -194,7 +188,8 @@ class UnicoreExecutor(BaseExecutor):
         return job
 
     def _create_job_description(self, workload: ExecuteTask) -> dict[str, Any]:
-        return self.configured_generator_class(self.conf).create_job_description(workload)
+        job_descr_generator: JobDescriptionGenerator = self.configured_generator_class(self.conf)  # type: ignore
+        return job_descr_generator.create_job_description(workload)
 
     def queue_workload(self, workload: ExecuteTask | All, session):
         if not isinstance(workload, ExecuteTask):
