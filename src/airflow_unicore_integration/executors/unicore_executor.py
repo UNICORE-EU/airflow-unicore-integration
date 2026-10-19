@@ -122,7 +122,11 @@ class UnicoreExecutor(BaseExecutor):
         # check 50 jobs at a time to prevent server from not returning some jobs
         offset = 0
         number = 50
-        job_name = self.configured_generator_class.get_job_name(key)
+        # Use the configured generator class if available; otherwise fall back to the instance generator
+        if hasattr(self, "configured_generator_class"):
+            job_name = self.configured_generator_class.get_job_name(key)
+        else:
+            job_name = self.job_descr_generator.get_job_name(key)
         while True:
             partial_job_list = unicore_client.get_jobs(offset=offset, num=number)
             if len(partial_job_list) == 0:
