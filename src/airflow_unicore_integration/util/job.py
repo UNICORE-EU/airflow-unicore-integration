@@ -225,12 +225,18 @@ class NaiveJobDescriptionGenerator(JobDescriptionGenerator):
                 and conn_id_to_transmit
             ):
                 git_hook = GitHook(conn_id_to_transmit)
-                git_remote_url = git_hook.repo_url
+                if not git_hook.repo_url:
+                    raise ValueError("Git Bundle not providing repo url.")
+                git_remote_url: str = git_hook.repo_url
+                if git_hook.auth_token and git_remote_url.startswith("https://"):
+                    git_remote_url = git_remote_url.replace(
+                        "https://", f"https://{git_hook.user_name}:{git_hook.auth_token}@"
+                    )
                 git_dir_prefix = f"{tmp_dir}/{workload.ti.dag_id}/{workload.ti.task_id}/{workload.ti.run_id}/{workload.ti.try_number}"
                 git_local_url = f"{git_dir_prefix}/dagmirror"
                 dag_bundle_path = f"{git_dir_prefix}/dagbundle"
                 # add precommand to clone repo on login node
-                git_precommand = f". {python_env} && mkdir -p {git_local_url} && mkdir -p {dag_bundle_path} && git clone {git_remote_url} {git_local_url}"
+                git_precommand = f". {python_env} && mkdir -p {git_local_url} && mkdir -p {dag_bundle_path} && git clone {git_remote_url} {git_local_url}"  # TODO have to use auth here if it is provided
                 self.add_to_env_file(
                     "AIRFLOW__DAG_PROCESSOR__DAG_BUNDLE_STORAGE_PATH", f"{dag_bundle_path}"
                 )
