@@ -1,7 +1,9 @@
 import json
 import logging
 import re
+import shlex
 from typing import Any
+from urllib.parse import urlparse
 
 from airflow.executors.workloads import ExecuteTask
 from airflow.models.taskinstancekey import TaskInstanceKey
@@ -102,7 +104,9 @@ class JobDescriptionGenerator:
             self.job_descr["Login node"] = user_defined_login_node
 
     def add_to_env_file(self, key: str, value: str) -> None:
-        self.env_file_content.append(f"export {key.upper()}='{value}'")
+        # a raw single quote would end the quoted value and start shell execution
+        safe_value = str(value).replace("'", "'\\''")
+        self.env_file_content.append(f"export {key.upper()}='{safe_value}'")
 
     def get_env_file_import(self) -> dict[str, str | list[str]]:
         return {"To": self.get_env_file_name(), "Data": self.env_file_content}
@@ -110,11 +114,39 @@ class JobDescriptionGenerator:
     def get_env_file_name(self) -> str:
         return "airflow_config.env"
 
+    GIT_CREDENTIALS_FILE = "git_credentials"
+
     def add_import(self, import_str: dict[str, Any]):
         if not self.job_descr.get("Imports", None):
             self.job_descr["Imports"] = [import_str]
         else:
             self.job_descr["Imports"].append(import_str)
+
+    def build_git_clone_command(
+        self, git_hook: GitHook, remote_url: str, local_path: str
+    ) -> tuple[str, list[str] | None]:
+        """
+        Build the command that clones the dag repository on the executing node.
+
+        Returns the command plus the content of the credential file that has to be
+        staged along with it (None when the connection needs no credentials).
+        Credentials are handed to git through a credential-store file instead of the
+        remote url, so they never end up in .git/config, in the process list or in
+        git error messages that echo the remote.
+        """
+        clone = f"git clone {shlex.quote(remote_url)} {shlex.quote(local_path)}"
+        if not (git_hook.user_name and git_hook.auth_token and remote_url.startswith("https://")):
+            return clone, None
+        host = urlparse(remote_url).netloc
+        credentials = [f"https://{git_hook.user_name}:{git_hook.auth_token}@{host}"]
+        helper = shlex.quote(f'!git credential-store --file="$PWD/{self.GIT_CREDENTIALS_FILE}"')
+        clone = (
+            f"git -c credential.helper= -c credential.helper={helper}"
+            f" clone {shlex.quote(remote_url)} {shlex.quote(local_path)}"
+        )
+        # keep the exit code of the clone while removing the credential file directly
+        guarded = f'( {clone} ; rc=$?; rm -f "$PWD/{self.GIT_CREDENTIALS_FILE}"; exit $rc )'
+        return guarded, credentials
 
 
 class NaiveJobDescriptionGenerator(JobDescriptionGenerator):
@@ -236,19 +268,24 @@ class NaiveJobDescriptionGenerator(JobDescriptionGenerator):
             if not git_hook.repo_url:
                 raise ValueError("Git Bundle not providing repo url.")
             git_remote_url: str = git_hook.repo_url
-            if git_hook.auth_token and git_remote_url.startswith("https://"):
-                git_remote_url = git_remote_url.replace(
-                    "https://", f"https://{git_hook.user_name}:{git_hook.auth_token}@"
-                )
             git_dir_prefix = f"{tmp_dir}/{workload.ti.dag_id}/{workload.ti.task_id}/{workload.ti.run_id}/{workload.ti.try_number}"
             git_local_url = f"{git_dir_prefix}/dagmirror"
             dag_bundle_path = f"{git_dir_prefix}/dagbundle"
             # add precommand to clone repo on login node
-            git_precommand = f". {python_env} && mkdir -p {git_local_url} && mkdir -p {dag_bundle_path} && git clone {git_remote_url} {git_local_url}"  # TODO have to use auth here if it is provided
+            clone_command, git_credentials = self.build_git_clone_command(
+                git_hook, git_remote_url, git_local_url
+            )
+            if git_credentials:
+                self.add_import({"To": self.GIT_CREDENTIALS_FILE, "Data": git_credentials})
+            git_precommand = (
+                f". {python_env} && mkdir -p {shlex.quote(git_local_url)}"
+                f" && mkdir -p {shlex.quote(dag_bundle_path)}"
+                f" && {clone_command}"
+            )
             self.add_to_env_file(
                 "AIRFLOW__DAG_PROCESSOR__DAG_BUNDLE_STORAGE_PATH", f"{dag_bundle_path}"
             )
-            logger.debug(f"git precommand is {git_precommand}")
+            logger.debug("git precommand is %s", redact_credentials(git_precommand))
             user_added_pre_commands.append(git_precommand)
             # add connection to local clone to env of job
             airflow_conn_string = json.dumps(
@@ -259,7 +296,7 @@ class NaiveJobDescriptionGenerator(JobDescriptionGenerator):
             )
             logger.debug(f"connection is '{airflow_conn_string}'")
             # add cleanup of local git repo to job description
-            git_cleanup_command = f"rm -r {git_dir_prefix}"
+            git_cleanup_command = f"rm -r {shlex.quote(git_dir_prefix)}"
             logger.debug(f"git cleanup is {git_cleanup_command}")
             user_added_post_commands.append(git_cleanup_command)
 
@@ -289,12 +326,14 @@ class NaiveJobDescriptionGenerator(JobDescriptionGenerator):
         # set the executable
         if not site_specific_precommand:
             self.job_descr["Executable"] = (
-                f". {self.get_env_file_name()} && . {python_env} && python run_task_via_supervisor.py --json-string '{workload.model_dump_json()}'"
+                f". {self.get_env_file_name()} && . {python_env} && python run_task_via_supervisor.py"
+                f" --json-string {shlex.quote(workload.model_dump_json())}"
             )
         else:
             logger.info("Using site specific command before task execution.")
             self.job_descr["Executable"] = (
-                f". {self.get_env_file_name()} && . {python_env} && {site_specific_precommand} && python run_task_via_supervisor.py --json-string '{workload.model_dump_json()}'"
+                f". {self.get_env_file_name()} && . {python_env} && {site_specific_precommand}"
+                f" && python run_task_via_supervisor.py --json-string {shlex.quote(workload.model_dump_json())}"
             )
 
         # overwrite with values from user added field
@@ -419,16 +458,27 @@ class ContainerJobDescriptionGenerator(JobDescriptionGenerator):
                 JobDescriptionGenerator.CONF_SECTION, "TMP_DIR", fallback="/tmp"
             )
             git_hook = GitHook(conn_id_to_transmit)
+            if not git_hook.repo_url:
+                raise ValueError("Git Bundle not providing repo url.")
             git_remote_url = git_hook.repo_url
             git_dir_prefix = f"{tmp_dir}/{workload.ti.dag_id}/{workload.ti.task_id}/{workload.ti.run_id}/{workload.ti.try_number}"
             git_local_url = f"{git_dir_prefix}/dagmirror"
             dag_bundle_path = f"{git_dir_prefix}/dagbundle"
             # add precommand to clone repo on login node
-            git_precommand = f". {system_env} && mkdir -p {git_local_url} && mkdir -p {dag_bundle_path} && git clone {git_remote_url} {git_local_url}"
+            clone_command, git_credentials = self.build_git_clone_command(
+                git_hook, git_remote_url, git_local_url
+            )
+            if git_credentials:
+                self.add_import({"To": self.GIT_CREDENTIALS_FILE, "Data": git_credentials})
+            git_precommand = (
+                f". {system_env} && mkdir -p {shlex.quote(git_local_url)}"
+                f" && mkdir -p {shlex.quote(dag_bundle_path)}"
+                f" && {clone_command}"
+            )
             self.add_to_env_file(
                 "AIRFLOW__DAG_PROCESSOR__DAG_BUNDLE_STORAGE_PATH", f"{dag_bundle_path}"
             )
-            logger.debug(f"git precommand is {git_precommand}")
+            logger.debug("git precommand is %s", redact_credentials(git_precommand))
             precommands.append(git_precommand)
             # add connection to local clone to env of job
             airflow_conn_string = json.dumps(
@@ -439,7 +489,7 @@ class ContainerJobDescriptionGenerator(JobDescriptionGenerator):
             )
             logger.debug(f"connection is '{airflow_conn_string}'")
             # add cleanup of local git repo to job description
-            git_cleanup_command = f"rm -r {git_dir_prefix}"
+            git_cleanup_command = f"rm -r {shlex.quote(git_dir_prefix)}"
             logger.debug(f"git cleanup is {git_cleanup_command}")
             postcommands.append(git_cleanup_command)
 
@@ -470,7 +520,10 @@ class ContainerJobDescriptionGenerator(JobDescriptionGenerator):
 
         self.add_import(worker_script_import)
 
-        entrypoint_script_content = f"#! /bin/bash\n. {self.get_env_file_name()}\npython run_task_via_supervisor.py --json-string '{workload.model_dump_json()}'"
+        entrypoint_script_content = (
+            f"#! /bin/bash\n. {self.get_env_file_name()}\n"
+            f"python run_task_via_supervisor.py --json-string {shlex.quote(workload.model_dump_json())}\n"
+        )
 
         entrypoint_script_name = "entrypoint.sh"
 
