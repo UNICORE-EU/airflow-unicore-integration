@@ -1,0 +1,28 @@
+name: Lint
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  lint:
+    name: Lint and build
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.12"
+    - name: Install lint tools
+      run: python3 -m pip install --upgrade pip "black>=24" "ruff>=0.6"
+    - name: Check formatting with black
+      run: black --check src
+    - name: Check with ruff
+      run: ruff check src
+    - name: Build the package
+      run: |
+        python3 -m pip install build
+        python3 -m build
