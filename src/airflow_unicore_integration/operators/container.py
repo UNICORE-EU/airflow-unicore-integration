@@ -1,6 +1,4 @@
-from airflow_unicore_integration.operators.unicore_operators import (
-    UnicoreGenericOperator,
-)
+from airflow_unicore_integration.operators.unicore_operators import UnicoreGenericOperator
 
 
 class UnicoreContainerOperator(UnicoreGenericOperator):

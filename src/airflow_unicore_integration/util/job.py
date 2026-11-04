@@ -1,7 +1,6 @@
 import json
 import logging
 from typing import Any
-from typing import Dict
 
 from airflow.executors.workloads import ExecuteTask
 from airflow.models.taskinstancekey import TaskInstanceKey
@@ -53,10 +52,10 @@ class JobDescriptionGenerator:
 
     def __init__(self, conf: AirflowSDKConfigParser) -> None:
         self.conf = conf
-        self.job_descr: Dict[str, Any] = {}
+        self.job_descr: dict[str, Any] = {}
         self.env_file_content: list[str] = []
 
-    def create_job_description(self, workload: ExecuteTask) -> Dict[str, Any]:
+    def create_job_description(self, workload: ExecuteTask) -> dict[str, Any]:
         raise NotImplementedError()
 
     @staticmethod
@@ -97,13 +96,13 @@ class JobDescriptionGenerator:
     def add_to_env_file(self, key: str, value: str) -> None:
         self.env_file_content.append(f"export {key.upper()}='{value}'")
 
-    def get_env_file_import(self) -> Dict[str, str | list[str]]:
+    def get_env_file_import(self) -> dict[str, str | list[str]]:
         return {"To": self.get_env_file_name(), "Data": self.env_file_content}
 
     def get_env_file_name(self) -> str:
         return "airflow_config.env"
 
-    def add_import(self, import_str: Dict[str, Any]):
+    def add_import(self, import_str: dict[str, Any]):
         if not self.job_descr.get("Imports", None):
             self.job_descr["Imports"] = [import_str]
         else:
@@ -117,26 +116,25 @@ class NaiveJobDescriptionGenerator(JobDescriptionGenerator):
 
     GIT_DAG_BUNDLE_CLASSPATH = "airflow.providers.git.bundles.git.GitDagBundle"
 
-    def create_job_description(self, workload: ExecuteTask) -> Dict[str, Any]:
+    def create_job_description(self, workload: ExecuteTask) -> dict[str, Any]:
         key: TaskInstanceKey = workload.ti.key
         executor_config = workload.ti.executor_config
         if not executor_config:
             executor_config = {}
 
         # get user config from executor_config
-        user_added_env: Dict[str, str] = executor_config.get(JobDescriptionGenerator.EXECUTOR_CONFIG_ENVIRONMENT, None)  # type: ignore
-        user_added_params: Dict[str, str] = executor_config.get(JobDescriptionGenerator.EXECUTOR_CONFIG_PARAMETERS, None)  # type: ignore
+        user_added_env: dict[str, str] = executor_config.get(JobDescriptionGenerator.EXECUTOR_CONFIG_ENVIRONMENT, None)  # type: ignore
+        user_added_params: dict[str, str] = executor_config.get(JobDescriptionGenerator.EXECUTOR_CONFIG_PARAMETERS, None)  # type: ignore
         user_added_project: str = executor_config.get(JobDescriptionGenerator.EXECUTOR_CONFIG_PROJECT, None)  # type: ignore
-        user_added_resources: Dict[str, str] = executor_config.get(JobDescriptionGenerator.EXECUTOR_CONFIG_RESOURCES, None)  # type: ignore
+        user_added_resources: dict[str, str] = executor_config.get(JobDescriptionGenerator.EXECUTOR_CONFIG_RESOURCES, None)  # type: ignore
         user_added_pre_commands: list[str] = executor_config.get(JobDescriptionGenerator.EXECUTOR_CONFIG_PRE_COMMANDS, [])  # type: ignore
         user_defined_python_env: str = workload.ti.executor_config.get(JobDescriptionGenerator.EXECUTOR_CONFIG_PYTHON_ENV_KEY, None)  # type: ignore
         user_added_post_commands: list[str] = executor_config.get(JobDescriptionGenerator.EXECUTOR_CONFIG_POST_COMMANDS, [])  # type: ignore
-        user_added_job_description: Dict[str, Any] = executor_config.get(JobDescriptionGenerator.EXECUTOR_CONFIG_JOB_DESCRIPTION_PARAMS, {})  # type: ignore
+        user_added_job_description: dict[str, Any] = executor_config.get(JobDescriptionGenerator.EXECUTOR_CONFIG_JOB_DESCRIPTION_PARAMS, {})  # type: ignore
 
         # get local dag path from cmd and fix dag path in arguments
         dag_rel_path = str(workload.dag_rel_path)
-        if dag_rel_path.startswith("DAG_FOLDER"):
-            dag_rel_path = dag_rel_path[10:]
+        dag_rel_path = dag_rel_path.removeprefix("DAG_FOLDER")
         base_url = global_conf.get("api", "base_url", fallback="/")
         default_execution_api_server = f"{base_url.rstrip('/')}/execution/"
         server = global_conf.get(
@@ -209,51 +207,52 @@ class NaiveJobDescriptionGenerator(JobDescriptionGenerator):
         bundle_type = None
 
         for bundle in bundle_dict:
-            if bundle["name"] == workload.bundle_info.name:
-                if bundle["classpath"] == NaiveJobDescriptionGenerator.GIT_DAG_BUNDLE_CLASSPATH:
-                    bundle_type = NaiveJobDescriptionGenerator.GIT_DAG_BUNDLE_CLASSPATH
-                    self.add_to_env_file(
-                        "AIRFLOW__DAG_PROCESSOR__DAG_BUNDLE_CONFIG_LIST", f"[{json.dumps(bundle)}]"
-                    )
-                    conn_id_to_transmit = bundle["kwargs"]["git_conn_id"]
-                    break
+            if (
+                bundle["name"] == workload.bundle_info.name
+                and bundle["classpath"] == NaiveJobDescriptionGenerator.GIT_DAG_BUNDLE_CLASSPATH
+            ):
+                bundle_type = NaiveJobDescriptionGenerator.GIT_DAG_BUNDLE_CLASSPATH
+                self.add_to_env_file(
+                    "AIRFLOW__DAG_PROCESSOR__DAG_BUNDLE_CONFIG_LIST", f"[{json.dumps(bundle)}]"
+                )
+                conn_id_to_transmit = bundle["kwargs"]["git_conn_id"]
+                break
                 # TODO handle other bundle types
 
-        if bundle_type:
-            if (
-                bundle_type == NaiveJobDescriptionGenerator.GIT_DAG_BUNDLE_CLASSPATH
-                and conn_id_to_transmit
-            ):
-                git_hook = GitHook(conn_id_to_transmit)
-                if not git_hook.repo_url:
-                    raise ValueError("Git Bundle not providing repo url.")
-                git_remote_url: str = git_hook.repo_url
-                if git_hook.auth_token and git_remote_url.startswith("https://"):
-                    git_remote_url = git_remote_url.replace(
-                        "https://", f"https://{git_hook.user_name}:{git_hook.auth_token}@"
-                    )
-                git_dir_prefix = f"{tmp_dir}/{workload.ti.dag_id}/{workload.ti.task_id}/{workload.ti.run_id}/{workload.ti.try_number}"
-                git_local_url = f"{git_dir_prefix}/dagmirror"
-                dag_bundle_path = f"{git_dir_prefix}/dagbundle"
-                # add precommand to clone repo on login node
-                git_precommand = f". {python_env} && mkdir -p {git_local_url} && mkdir -p {dag_bundle_path} && git clone {git_remote_url} {git_local_url}"  # TODO have to use auth here if it is provided
-                self.add_to_env_file(
-                    "AIRFLOW__DAG_PROCESSOR__DAG_BUNDLE_STORAGE_PATH", f"{dag_bundle_path}"
+        if (
+            bundle_type == NaiveJobDescriptionGenerator.GIT_DAG_BUNDLE_CLASSPATH
+            and conn_id_to_transmit
+        ):
+            git_hook = GitHook(conn_id_to_transmit)
+            if not git_hook.repo_url:
+                raise ValueError("Git Bundle not providing repo url.")
+            git_remote_url: str = git_hook.repo_url
+            if git_hook.auth_token and git_remote_url.startswith("https://"):
+                git_remote_url = git_remote_url.replace(
+                    "https://", f"https://{git_hook.user_name}:{git_hook.auth_token}@"
                 )
-                logger.debug(f"git precommand is {git_precommand}")
-                user_added_pre_commands.append(git_precommand)
-                # add connection to local clone to env of job
-                airflow_conn_string = json.dumps(
-                    {"conn_type": "git", "host": f"file://{git_local_url}"}
-                )
-                self.add_to_env_file(
-                    f"AIRFLOW_CONN_{str(conn_id_to_transmit).upper()}", airflow_conn_string
-                )
-                logger.debug(f"connection is '{airflow_conn_string}'")
-                # add cleanup of local git repo to job description
-                git_cleanup_command = f"rm -r {git_dir_prefix}"
-                logger.debug(f"git cleanup is {git_cleanup_command}")
-                user_added_post_commands.append(git_cleanup_command)
+            git_dir_prefix = f"{tmp_dir}/{workload.ti.dag_id}/{workload.ti.task_id}/{workload.ti.run_id}/{workload.ti.try_number}"
+            git_local_url = f"{git_dir_prefix}/dagmirror"
+            dag_bundle_path = f"{git_dir_prefix}/dagbundle"
+            # add precommand to clone repo on login node
+            git_precommand = f". {python_env} && mkdir -p {git_local_url} && mkdir -p {dag_bundle_path} && git clone {git_remote_url} {git_local_url}"  # TODO have to use auth here if it is provided
+            self.add_to_env_file(
+                "AIRFLOW__DAG_PROCESSOR__DAG_BUNDLE_STORAGE_PATH", f"{dag_bundle_path}"
+            )
+            logger.debug(f"git precommand is {git_precommand}")
+            user_added_pre_commands.append(git_precommand)
+            # add connection to local clone to env of job
+            airflow_conn_string = json.dumps(
+                {"conn_type": "git", "host": f"file://{git_local_url}"}
+            )
+            self.add_to_env_file(
+                f"AIRFLOW_CONN_{str(conn_id_to_transmit).upper()}", airflow_conn_string
+            )
+            logger.debug(f"connection is '{airflow_conn_string}'")
+            # add cleanup of local git repo to job description
+            git_cleanup_command = f"rm -r {git_dir_prefix}"
+            logger.debug(f"git cleanup is {git_cleanup_command}")
+            user_added_post_commands.append(git_cleanup_command)
 
         self.add_import(self.get_env_file_import())
 
@@ -269,8 +268,8 @@ class NaiveJobDescriptionGenerator(JobDescriptionGenerator):
         )
         # add user defined options to description
         if user_added_env:
-            for env_key in user_added_env:
-                self.add_to_env_file(env_key, user_added_env[env_key])
+            for env_key, value in user_added_env.items():
+                self.add_to_env_file(env_key, value)
         if user_added_params:
             self.job_descr["Parameters"] = user_added_params
         if user_added_project:
@@ -301,7 +300,7 @@ class ContainerJobDescriptionGenerator(JobDescriptionGenerator):
     This will allow a lot fewer user options beyond the image url than the NaiveJobDescriptionGenerator.
     """
 
-    def create_job_description(self, workload: ExecuteTask) -> Dict[str, Any]:
+    def create_job_description(self, workload: ExecuteTask) -> dict[str, Any]:
         key: TaskInstanceKey = workload.ti.key
         executor_config = workload.ti.executor_config
         if not executor_config:
@@ -309,9 +308,9 @@ class ContainerJobDescriptionGenerator(JobDescriptionGenerator):
         # get user config from executor_config
         user_image: str = executor_config.get(JobDescriptionGenerator.EXECUTOR_CONFIG_IMAGE_URL_KEY, None)  # type: ignore
         user_image_type: str = executor_config.get(JobDescriptionGenerator.EXECUTOR_CONFIG_IMAGE_TYPE_KEY, None)  # type: ignore
-        user_added_env: Dict[str, str] = executor_config.get(JobDescriptionGenerator.EXECUTOR_CONFIG_ENVIRONMENT, None)  # type: ignore
+        user_added_env: dict[str, str] = executor_config.get(JobDescriptionGenerator.EXECUTOR_CONFIG_ENVIRONMENT, None)  # type: ignore
         user_added_project: str = executor_config.get(JobDescriptionGenerator.EXECUTOR_CONFIG_PROJECT, None)  # type: ignore
-        user_added_resources: Dict[str, str] = executor_config.get(JobDescriptionGenerator.EXECUTOR_CONFIG_RESOURCES, None)  # type: ignore
+        user_added_resources: dict[str, str] = executor_config.get(JobDescriptionGenerator.EXECUTOR_CONFIG_RESOURCES, None)  # type: ignore
         precommands: list[str] = []
         postcommands: list[str] = []
 
@@ -336,8 +335,7 @@ class ContainerJobDescriptionGenerator(JobDescriptionGenerator):
 
         # get local dag path from cmd and fix dag path in arguments
         dag_rel_path = str(workload.dag_rel_path)
-        if dag_rel_path.startswith("DAG_FOLDER"):
-            dag_rel_path = dag_rel_path[10:]
+        dag_rel_path = dag_rel_path.removeprefix("DAG_FOLDER")
         base_url = global_conf.get("api", "base_url", fallback="/")
         default_execution_api_server = f"{base_url.rstrip('/')}/execution/"
         server = global_conf.get(
@@ -390,48 +388,49 @@ class ContainerJobDescriptionGenerator(JobDescriptionGenerator):
         bundle_type = None
 
         for bundle in bundle_dict:
-            if bundle["name"] == workload.bundle_info.name:
-                if bundle["classpath"] == NaiveJobDescriptionGenerator.GIT_DAG_BUNDLE_CLASSPATH:
-                    bundle_type = NaiveJobDescriptionGenerator.GIT_DAG_BUNDLE_CLASSPATH
-                    self.add_to_env_file(
-                        "AIRFLOW__DAG_PROCESSOR__DAG_BUNDLE_CONFIG_LIST", f"[{json.dumps(bundle)}]"
-                    )
-                    conn_id_to_transmit = bundle["kwargs"]["git_conn_id"]
-                    break
+            if (
+                bundle["name"] == workload.bundle_info.name
+                and bundle["classpath"] == NaiveJobDescriptionGenerator.GIT_DAG_BUNDLE_CLASSPATH
+            ):
+                bundle_type = NaiveJobDescriptionGenerator.GIT_DAG_BUNDLE_CLASSPATH
+                self.add_to_env_file(
+                    "AIRFLOW__DAG_PROCESSOR__DAG_BUNDLE_CONFIG_LIST", f"[{json.dumps(bundle)}]"
+                )
+                conn_id_to_transmit = bundle["kwargs"]["git_conn_id"]
+                break
                 # TODO handle other bundle types
 
-        if bundle_type:
-            if (
-                bundle_type == NaiveJobDescriptionGenerator.GIT_DAG_BUNDLE_CLASSPATH
-                and conn_id_to_transmit
-            ):
-                tmp_dir = self.conf.get(
-                    JobDescriptionGenerator.CONF_SECTION, "TMP_DIR", fallback="/tmp"
-                )
-                git_hook = GitHook(conn_id_to_transmit)
-                git_remote_url = git_hook.repo_url
-                git_dir_prefix = f"{tmp_dir}/{workload.ti.dag_id}/{workload.ti.task_id}/{workload.ti.run_id}/{workload.ti.try_number}"
-                git_local_url = f"{git_dir_prefix}/dagmirror"
-                dag_bundle_path = f"{git_dir_prefix}/dagbundle"
-                # add precommand to clone repo on login node
-                git_precommand = f". {system_env} && mkdir -p {git_local_url} && mkdir -p {dag_bundle_path} && git clone {git_remote_url} {git_local_url}"
-                self.add_to_env_file(
-                    "AIRFLOW__DAG_PROCESSOR__DAG_BUNDLE_STORAGE_PATH", f"{dag_bundle_path}"
-                )
-                logger.debug(f"git precommand is {git_precommand}")
-                precommands.append(git_precommand)
-                # add connection to local clone to env of job
-                airflow_conn_string = json.dumps(
-                    {"conn_type": "git", "host": f"file://{git_local_url}"}
-                )
-                self.add_to_env_file(
-                    f"AIRFLOW_CONN_{str(conn_id_to_transmit).upper()}", airflow_conn_string
-                )
-                logger.debug(f"connection is '{airflow_conn_string}'")
-                # add cleanup of local git repo to job description
-                git_cleanup_command = f"rm -r {git_dir_prefix}"
-                logger.debug(f"git cleanup is {git_cleanup_command}")
-                postcommands.append(git_cleanup_command)
+        if (
+            bundle_type == NaiveJobDescriptionGenerator.GIT_DAG_BUNDLE_CLASSPATH
+            and conn_id_to_transmit
+        ):
+            tmp_dir = self.conf.get(
+                JobDescriptionGenerator.CONF_SECTION, "TMP_DIR", fallback="/tmp"
+            )
+            git_hook = GitHook(conn_id_to_transmit)
+            git_remote_url = git_hook.repo_url
+            git_dir_prefix = f"{tmp_dir}/{workload.ti.dag_id}/{workload.ti.task_id}/{workload.ti.run_id}/{workload.ti.try_number}"
+            git_local_url = f"{git_dir_prefix}/dagmirror"
+            dag_bundle_path = f"{git_dir_prefix}/dagbundle"
+            # add precommand to clone repo on login node
+            git_precommand = f". {system_env} && mkdir -p {git_local_url} && mkdir -p {dag_bundle_path} && git clone {git_remote_url} {git_local_url}"
+            self.add_to_env_file(
+                "AIRFLOW__DAG_PROCESSOR__DAG_BUNDLE_STORAGE_PATH", f"{dag_bundle_path}"
+            )
+            logger.debug(f"git precommand is {git_precommand}")
+            precommands.append(git_precommand)
+            # add connection to local clone to env of job
+            airflow_conn_string = json.dumps(
+                {"conn_type": "git", "host": f"file://{git_local_url}"}
+            )
+            self.add_to_env_file(
+                f"AIRFLOW_CONN_{str(conn_id_to_transmit).upper()}", airflow_conn_string
+            )
+            logger.debug(f"connection is '{airflow_conn_string}'")
+            # add cleanup of local git repo to job description
+            git_cleanup_command = f"rm -r {git_dir_prefix}"
+            logger.debug(f"git cleanup is {git_cleanup_command}")
+            postcommands.append(git_cleanup_command)
 
         self.add_import(self.get_env_file_import())
 
@@ -445,8 +444,8 @@ class ContainerJobDescriptionGenerator(JobDescriptionGenerator):
         )
         # add user defined options to description
         if user_added_env:
-            for env_key in user_added_env:
-                self.add_to_env_file(env_key, user_added_env[env_key])
+            for env_key, value in user_added_env.items():
+                self.add_to_env_file(env_key, value)
         if user_added_project:
             self.job_descr["Project"] = user_added_project
         if user_added_resources:

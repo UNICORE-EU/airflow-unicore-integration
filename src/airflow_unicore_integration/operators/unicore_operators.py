@@ -1,8 +1,6 @@
 import logging
+from collections.abc import Sequence
 from typing import Any
-from typing import Dict
-from typing import List
-from typing import Sequence
 
 import pyunicore.client as uc_client
 import pyunicore.credentials as uc_credentials
@@ -32,9 +30,9 @@ class UnicoreGenericOperator(BaseOperator):
         application_name: str | None = None,
         application_version: str | None = None,
         executable: str | None = None,
-        arguments: List[str] | None = None,
-        environment: List[str] | None = None,
-        parameters: Dict[str, str | List[str]] | None = None,
+        arguments: list[str] | None = None,
+        environment: list[str] | None = None,
+        parameters: dict[str, str | list[str]] | None = None,
         stdout: str | None = None,
         stderr: str | None = None,
         stdin: str | None = None,
@@ -45,18 +43,18 @@ class UnicoreGenericOperator(BaseOperator):
         user_post_command: str | None = None,
         run_user_post_command_on_login_node: bool | None = None,
         user_post_command_ignore_non_zero_exit_code: bool | None = None,
-        uc_resources: Dict[str, str] | None = None,
+        uc_resources: dict[str, str] | None = None,
         project: str | None = None,
-        imports: List[Dict[str, str | Sequence[str]]] | None = None,
-        exports: List[Dict[str, str | List[str]]] | None = None,
+        imports: list[dict[str, str | Sequence[str]]] | None = None,
+        exports: list[dict[str, str | list[str]]] | None = None,
         have_client_stagein: bool | None = None,
         job_type: str | None = None,
         login_node: str | None = None,
         bss_file: str | None = None,
-        tags: List[str] | None = None,
+        tags: list[str] | None = None,
         notification: str | None = None,
         user_email: str | None = None,
-        xcom_output_files: List[str] = ["stdout", "stderr"],
+        xcom_output_files: list[str] | None = None,
         base_url: str | None = None,
         credential: uc_credentials.Credential | None = None,
         credential_username: str | None = None,
@@ -108,7 +106,9 @@ class UnicoreGenericOperator(BaseOperator):
         self.tags = tags
         self.notification = notification
         self.user_email = user_email
-        self.xcom_output_files = xcom_output_files
+        self.xcom_output_files = (
+            xcom_output_files if xcom_output_files is not None else ["stdout", "stderr"]
+        )
 
         self.base_url = base_url
         self.credential = credential
@@ -155,7 +155,7 @@ class UnicoreGenericOperator(BaseOperator):
 
     def get_job_description(self) -> dict[str, Any]:
         """Generates the job description to be submitted to the unicore server."""
-        job_description_dict: Dict = {}
+        job_description_dict: dict = {}
 
         # now add the various simple string attribute fragments to the list, when they are not None
         if self.name is not None:
@@ -307,7 +307,7 @@ class UnicoreGenericOperator(BaseOperator):
         content = work_dir.contents()["content"]
         task_instance.xcom_push(key="workdir_content", value=content)
 
-        for filename in content.keys():
+        for filename in content:
             if "/UNICORE_Job_" in filename:
                 task_instance.xcom_push(key="Unicore Job ID", value=filename[13:])
                 jobt_text = work_dir.stat(filename).raw().read().decode("utf-8")
@@ -379,7 +379,7 @@ class UnicoreExecutableOperator(UnicoreGenericOperator):
         self,
         name: str,
         executable: str,
-        xcom_output_files: List[str] = ["stdout", "stderr"],
+        xcom_output_files: list[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(

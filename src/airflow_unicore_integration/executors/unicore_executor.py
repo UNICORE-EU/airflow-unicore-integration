@@ -130,7 +130,8 @@ class UnicoreExecutor(BaseExecutor):
                 if job.properties["name"] == job_name:  # type: ignore
                     return job
 
-    def _get_unicore_client(self, executor_config: dict | None = {}):
+    def _get_unicore_client(self, executor_config: dict | None = None):
+        executor_config = executor_config or {}
         overwrite_preconfigured_site = executor_config.get(  # type: ignore
             UnicoreExecutor.Executor_CONFIG_UNICORE_PRECONFIGURED_SITE_KEY, None
         )  # task can provide a site to run at, else use first one from config
