@@ -72,7 +72,7 @@ class JobDescriptionGenerator:
         )  # task can provide a site to run at, else use first one from config
 
         preconfigured_sites: list[list[str]] = json.loads(
-            self.conf.get(JobDescriptionGenerator.CONF_SECTION, "SITES_CONFIG", "")
+            self.conf.get(JobDescriptionGenerator.CONF_SECTION, "SITES_CONFIG", fallback="")
         )
 
         site = preconfigured_sites[0]
@@ -150,7 +150,9 @@ class NaiveJobDescriptionGenerator(JobDescriptionGenerator):
         if using_proxy == "True":
             logger.info("Using proxy for this task.")
             proxy_url = self.conf.get(
-                JobDescriptionGenerator.CONF_SECTION, f"SITES_PROXY_{site[0].upper()}", ""
+                JobDescriptionGenerator.CONF_SECTION,
+                f"SITES_PROXY_{site[0].upper()}",
+                fallback="",
             )
         else:
             proxy_url = None
@@ -171,7 +173,7 @@ class NaiveJobDescriptionGenerator(JobDescriptionGenerator):
         tmp_dir = self.conf.get(
             JobDescriptionGenerator.CONF_SECTION,
             JobDescriptionGenerator.AIRFLOW_CONFIG_TMP_DIR_KEY,
-            "/tmp",
+            fallback="/tmp",
         )
 
         worker_script_import = {
@@ -351,7 +353,9 @@ class ContainerJobDescriptionGenerator(JobDescriptionGenerator):
         if using_proxy == "True":
             logger.info("Using proxy for this task.")
             proxy_url = self.conf.get(
-                JobDescriptionGenerator.CONF_SECTION, f"SITES_PROXY_{site[0].upper()}", ""
+                JobDescriptionGenerator.CONF_SECTION,
+                f"SITES_PROXY_{site[0].upper()}",
+                fallback="",
             )
         else:
             proxy_url = None

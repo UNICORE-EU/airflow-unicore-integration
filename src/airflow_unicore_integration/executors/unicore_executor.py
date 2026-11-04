@@ -61,7 +61,11 @@ class UnicoreExecutor(BaseExecutor):
             self.conf = conf
 
         # get job description generator class and init params from config
-        generator_class_path: str = self.conf.get("unicore.executor", UnicoreExecutor.AIRFLOW_CONFIG_JOB_DESCRIPTION_GENERATOR_CLASS_KEY, UnicoreExecutor.AIRFLOW_CONFIG_JOB_DESCRIPTION_GENERATOR_DERFAULT_CLASS)  # type: ignore
+        generator_class_path: str = self.conf.get(  # type: ignore
+            "unicore.executor",
+            UnicoreExecutor.AIRFLOW_CONFIG_JOB_DESCRIPTION_GENERATOR_CLASS_KEY,
+            fallback=UnicoreExecutor.AIRFLOW_CONFIG_JOB_DESCRIPTION_GENERATOR_DERFAULT_CLASS,
+        )
         module_name, class_name = generator_class_path.rsplit(".", 1)
         self.configured_generator_class = getattr(importlib.import_module(module_name), class_name)
 
@@ -165,7 +169,7 @@ class UnicoreExecutor(BaseExecutor):
         # list of sites
         # each site is a lsit of strings, containing [0] site name, [1] site url, [2] auth_token
         preconfigured_sites: list[list[str]] = json.loads(
-            self.conf.get("unicore.executor", "SITES_CONFIG", "")
+            self.conf.get("unicore.executor", "SITES_CONFIG", fallback="")
         )
         site = preconfigured_sites[0]
         if overwrite_preconfigured_site is not None:
@@ -177,7 +181,9 @@ class UnicoreExecutor(BaseExecutor):
 
         base_url = site[1]
 
-        token: str = self.conf.get("unicore.executor", f"SITES_TOKEN_{site[0].upper()}", "")
+        token: str = self.conf.get(
+            "unicore.executor", f"SITES_TOKEN_{site[0].upper()}", fallback=""
+        )
 
         user_config = dict(enumerate(site)).get(2)
 
