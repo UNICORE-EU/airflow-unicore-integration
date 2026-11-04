@@ -1,6 +1,6 @@
 [build-system]
 requires = [
-  "setuptools>=61.0",
+  "setuptools>=77",
   "wheel"
   ]
 build-backend = "setuptools.build_meta"
@@ -13,7 +13,7 @@ authors = [
 ]
 description = "Running Unicore Jobs from airflow DAGs."
 readme = "README.rst"
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 license = "BSD-3-Clause"
 classifiers = [
     "Development Status :: 4 - Beta",
@@ -45,8 +45,8 @@ Issues = "https://github.com/UNICORE-EU/airflow-unicore-integration/issues"
 [project.entry-points."apache_airflow_provider"]
 provider_info = "airflow_unicore_integration:get_provider_info"
 
-[project.entry-points.'airflow.policy']
-_ = 'airflow_unicore_integration.policies'
+[tool.setuptools.packages.find]
+where = ["src"]
 
 [tool.pytest.ini_options]
 pythonpath = [
@@ -56,18 +56,16 @@ pythonpath = [
 [tool.black]
 line-length = 100
 
-[tool.flake8]
-max-line-length = 100
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+src = ["src"]
+
+[tool.ruff.lint]
 ignore = [
- "N999",
- "E501",
- "W503",
- "E203"
-]
-per-file-ignores = [
-    "__init__.py:F401,E501",
-    "_version.py:E203",
+  "E501",  # line length is black's job
+  "E203",  # whitespace around slicing, conflicts with black
 ]
 
-[tool.mypy]
-ignore_missing_imports=true
+[tool.ruff.lint.isort]
+force-single-line = true  # matches the one-import-per-line style used throughout
