@@ -132,9 +132,6 @@ class NaiveJobDescriptionGenerator(JobDescriptionGenerator):
         user_added_post_commands: list[str] = executor_config.get(JobDescriptionGenerator.EXECUTOR_CONFIG_POST_COMMANDS, [])  # type: ignore
         user_added_job_description: dict[str, Any] = executor_config.get(JobDescriptionGenerator.EXECUTOR_CONFIG_JOB_DESCRIPTION_PARAMS, {})  # type: ignore
 
-        # get local dag path from cmd and fix dag path in arguments
-        dag_rel_path = str(workload.dag_rel_path)
-        dag_rel_path = dag_rel_path.removeprefix("DAG_FOLDER")
         base_url = global_conf.get("api", "base_url", fallback="/")
         default_execution_api_server = f"{base_url.rstrip('/')}/execution/"
         server = global_conf.get(
@@ -178,7 +175,6 @@ class NaiveJobDescriptionGenerator(JobDescriptionGenerator):
 
         worker_script_import = {
             "To": "run_task_via_supervisor.py",
-            # "From": "https://gist.githubusercontent.com/cboettcher/3f1101a1d1b67e7944d17c02ecd69930/raw/1d90bf38199d8c0adf47a79c8840c3e3ddf57462/run_task_via_supervisor.py",
             "Data": LAUNCH_SCRIPT_CONTENT_STR,
         }
 
@@ -335,9 +331,6 @@ class ContainerJobDescriptionGenerator(JobDescriptionGenerator):
             JobDescriptionGenerator.AIRFLOW_CONFIG_DEFAULT_ENV_KEY,
         )
 
-        # get local dag path from cmd and fix dag path in arguments
-        dag_rel_path = str(workload.dag_rel_path)
-        dag_rel_path = dag_rel_path.removeprefix("DAG_FOLDER")
         base_url = global_conf.get("api", "base_url", fallback="/")
         default_execution_api_server = f"{base_url.rstrip('/')}/execution/"
         server = global_conf.get(
@@ -458,7 +451,6 @@ class ContainerJobDescriptionGenerator(JobDescriptionGenerator):
         # import worker script
         worker_script_import = {
             "To": "run_task_via_supervisor.py",
-            # "From": "https://gist.githubusercontent.com/cboettcher/3f1101a1d1b67e7944d17c02ecd69930/raw/1d90bf38199d8c0adf47a79c8840c3e3ddf57462/run_task_via_supervisor.py",
             "Data": LAUNCH_SCRIPT_CONTENT_STR,
         }
 
@@ -471,8 +463,6 @@ class ContainerJobDescriptionGenerator(JobDescriptionGenerator):
         entrypoint_import = {"To": entrypoint_script_name, "Data": entrypoint_script_content}
 
         self.add_import(entrypoint_import)
-
-        # task_cmd = f". {self.get_env_file_name()} && python run_task_via_supervisor.py --json-string '{workload.model_dump_json()}'"
 
         job_image_name = "job_image.sif"
         bind_options = self.conf.get(
@@ -492,20 +482,19 @@ class ContainerJobDescriptionGenerator(JobDescriptionGenerator):
         apptainer_cmd = f"{apptainer_cmd} && apptainer exec --nv --bind {bind_options} --home {home} --sharens {job_image_name} bash {entrypoint_script_name}"
 
         apptainer_precommand = f"apptainer build {job_image_name} {user_image_type}://{user_image}"
-        self.job_descr["User precommand"] = (
-            f". {system_env} && bash precommand.sh && {apptainer_precommand}"
-        )
-        self.job_descr["User postcommand"] = f". {system_env} && bash postcommand.sh"
+        # only reference the pre/postcommand scripts if they were actually added as imports
+        pre_cmds: list[str] = [f". {system_env}"]
+        if len(precommands) > 0:
+            pre_cmds.append("bash precommand.sh")
+        pre_cmds.append(apptainer_precommand)
+        self.job_descr["User precommand"] = " && ".join(pre_cmds)
 
-        worker_script_import = {
-            "To": "run_task_via_supervisor.py",
-            # "From": "https://gist.githubusercontent.com/cboettcher/3f1101a1d1b67e7944d17c02ecd69930/raw/1d90bf38199d8c0adf47a79c8840c3e3ddf57462/run_task_via_supervisor.py",
-            "Data": LAUNCH_SCRIPT_CONTENT_STR,
-        }
+        post_cmds: list[str] = [f". {system_env}"]
+        if len(postcommands) > 0:
+            post_cmds.append("bash postcommand.sh")
+        self.job_descr["User postcommand"] = " && ".join(post_cmds)
 
         # set executable for job
         self.job_descr["Executable"] = apptainer_cmd
-
-        self.add_import(worker_script_import)
 
         return self.job_descr
