@@ -65,6 +65,9 @@ class UnicoreExecutor(BaseExecutor):
         module_name, class_name = generator_class_path.rsplit(".", 1)
         self.configured_generator_class = getattr(importlib.import_module(module_name), class_name)
 
+        # must exist before start() so sync/terminate/queue_workload never hit a missing attribute
+        self.active_jobs: dict[TaskInstanceKey, uc_client.Job] = {}
+
     def start(self):
         self.active_jobs: dict[TaskInstanceKey, uc_client.Job] = {}  # type: ignore
 
@@ -218,15 +221,30 @@ class UnicoreExecutor(BaseExecutor):
         self.active_jobs[workload.ti.key] = job
 
     def end(self, heartbeat_interval=10) -> None:
-        # wait for current jobs to finish, dont start any new ones
+        # wait for current jobs to finish, dont start any new ones - but never forever
+        shutdown_timeout = float(
+            self.conf.get("unicore.executor", "SHUTDOWN_TIMEOUT", fallback="600")
+        )
+        deadline = time.monotonic() + shutdown_timeout
         while True:
             self.sync()
             if not self.active_jobs:
+                break
+            if time.monotonic() >= deadline:
+                self.log.warning(
+                    "Shutdown timed out after %s seconds, %s unicore job(s) are still active: %s",
+                    int(shutdown_timeout),
+                    len(self.active_jobs),
+                    list(self.active_jobs),
+                )
                 break
             time.sleep(heartbeat_interval)
 
     def terminate(self):
         # terminate all jobs
         for task, job in list(self.active_jobs.items()):
-            job.abort()
+            try:
+                job.abort()
+            except RequestException as re:
+                self.log.warning("Could not abort the unicore job for task %s: %s", task, re)
         self.end()
