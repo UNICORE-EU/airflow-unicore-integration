@@ -3,7 +3,7 @@ def get_provider_info():
         "package-name": "airflow-unicore-integration",
         "name": "Unicore",
         "description": "Apache Airflow Unicore provider containing Operators and hooks.",
-        "cli": [],
+        "cli": ["airflow_unicore_integration.cli.definition.get_cli_commands"],
         "connection-types": [
             {
                 "connection-type": "unicore",
