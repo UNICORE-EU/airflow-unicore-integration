@@ -79,7 +79,24 @@ class UnicoreExecutor(BaseExecutor):
         for task, job in list(self.active_jobs.items()):
             # TODO if unicore job is still running, but airflow reports failed, success or up_for_retry,
             # kill the still running job to prevent resource consumption
-            state = STATE_MAPPINGS[job.status]
+            try:
+                job_status = job.status
+            except RequestException as re:
+                # a single unreadable job must not stop the executor heartbeat for all other tasks
+                self.log.warning(
+                    "Could not read the unicore job status for task %s, retrying on the next heartbeat: %s",
+                    task,
+                    re,
+                )
+                continue
+            state = STATE_MAPPINGS.get(job_status)
+            if state is None:
+                self.log.debug(
+                    "Unicore job for task %s reports unknown status %s, leaving it active.",
+                    task,
+                    job_status,
+                )
+                continue
             if state == TaskInstanceState.FAILED:
                 self.fail(task)
                 self.active_jobs.pop(task)
