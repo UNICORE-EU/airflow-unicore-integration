@@ -28,6 +28,7 @@ from pyunicore.credentials import create_credential
 from requests.exceptions import RequestException
 
 from ..util.job import JobDescriptionGenerator
+from ..util.job import redact_credentials
 
 STATE_MAPPINGS: dict[uc_client.JobStatus, TaskInstanceState] = {
     uc_client.JobStatus.UNDEFINED: TaskInstanceState.FAILED,
@@ -236,8 +237,7 @@ class UnicoreExecutor(BaseExecutor):
     def _submit_job(self, workload: ExecuteTask):
         unicore_client = self._get_unicore_client(executor_config=workload.ti.executor_config)
         job_descr = self._create_job_description(workload)
-        self.log.info("Generated job description")
-        self.log.debug(str(job_descr))
+        self.log.debug("Generated job description: %s", redact_credentials(str(job_descr)))
         job = unicore_client.new_job(job_descr)
         self.log.info("Submitted unicore job")
         self.active_jobs[workload.ti.key] = job

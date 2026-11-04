@@ -1,5 +1,6 @@
 import json
 import logging
+import re
 from typing import Any
 
 from airflow.executors.workloads import ExecuteTask
@@ -11,6 +12,13 @@ from airflow.sdk.configuration import AirflowSDKConfigParser
 from .launch_script_content import LAUNCH_SCRIPT_CONTENT_STR
 
 logger = logging.getLogger(__name__)
+
+_CRED_IN_URL = re.compile(r"(?<=://)[^/@\s]+:[^/@\s]+@")
+
+
+def redact_credentials(text: str) -> str:
+    """Mask user:token pairs embedded in URLs before anything is logged."""
+    return _CRED_IN_URL.sub("***:***@", text)
 
 
 class JobDescriptionGenerator:
@@ -181,7 +189,10 @@ class NaiveJobDescriptionGenerator(JobDescriptionGenerator):
         self.add_import(worker_script_import)
 
         self.add_to_env_file("AIRFLOW__CORE__EXECUTION_API_SERVER_URL", server)
-        self.add_to_env_file("AIRFLOW__LOGGING__LOGGING_LEVEL", "DEBUG")
+        self.add_to_env_file(
+            "AIRFLOW__LOGGING__LOGGING_LEVEL",
+            self.conf.get(JobDescriptionGenerator.CONF_SECTION, "JOB_LOG_LEVEL", fallback="INFO"),
+        )
         self.add_to_env_file(
             "AIRFLOW__CORE__EXECUTOR",
             "LocalExecutor,airflow_unicore_integration.executors.unicore_executor.UnicoreExecutor",
@@ -359,7 +370,10 @@ class ContainerJobDescriptionGenerator(JobDescriptionGenerator):
         self.set_job_name(key=key)
 
         self.add_to_env_file("AIRFLOW__CORE__EXECUTION_API_SERVER_URL", server)
-        self.add_to_env_file("AIRFLOW__LOGGING__LOGGING_LEVEL", "DEBUG")
+        self.add_to_env_file(
+            "AIRFLOW__LOGGING__LOGGING_LEVEL",
+            self.conf.get(JobDescriptionGenerator.CONF_SECTION, "JOB_LOG_LEVEL", fallback="INFO"),
+        )
         self.add_to_env_file(
             "AIRFLOW__CORE__EXECUTOR",
             "LocalExecutor,airflow_unicore_integration.executors.unicore_executor.UnicoreExecutor,KubernetesExecutor,CeleryExecutor",
