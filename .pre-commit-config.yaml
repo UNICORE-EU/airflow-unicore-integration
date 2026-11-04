@@ -24,10 +24,7 @@ repos:
     rev: v3.19.1
     hooks:
       - id: pyupgrade
-        args: [
-            "--py3-plus",
-            "--py36-plus",
-        ]
+        args: [ "--py310-plus" ]
 
   - repo: https://github.com/psf/black
     rev: 25.1.0
@@ -35,28 +32,9 @@ repos:
       - id: black
         args: ["--config", "pyproject.toml"]
 
-  - repo: https://github.com/pycqa/flake8
-    rev: 7.1.2
+  # same rule set the lint workflow runs, so local commits and CI cannot disagree
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.16.8
     hooks:
-      - id: flake8
-        additional_dependencies:
-          - Flake8-pyproject
-          # See https://github.com/DmytroLitvinov/awesome-flake8-extensions
-          - flake8-blind-except
-          #- flake8-logging-format
-          - flake8_module_name
-          - pep8-naming
-
-  - repo: https://github.com/pycqa/isort
-    rev: 6.0.0
-    hooks:
-    - id: isort
-      args: [--profile, black, --force-single-line-imports]
-  - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: 'v1.15.0'  # Use the sha / tag you want to point at
-    hooks:
-    -   id: mypy
-        additional_dependencies:
-        - "pydantic==v2.10.6"
-        - "sqlmodel==0.0.22"
-        - "types-requests"
+      - id: ruff
+        args: [ "--fix" ]
