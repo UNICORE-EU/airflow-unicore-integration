@@ -115,6 +115,12 @@ class JobDescriptionGenerator:
         return "airflow_config.env"
 
     GIT_CREDENTIALS_FILE = "git_credentials"
+    # UNICORE stages the imports into the job working directory, but the precommand
+    # shell may already have cd'ed away by the time the clone runs (user precommands
+    # come first), so the staged file is addressed through an anchor that the script
+    # itself exports as its very first line.
+    CREDENTIAL_DIR_ANCHOR = 'export UNICORE_JOB_DIR="$PWD"'
+    CREDENTIAL_FILE_PATH = f'"${{UNICORE_JOB_DIR:-$PWD}}/{GIT_CREDENTIALS_FILE}"'
 
     def add_import(self, import_str: dict[str, Any]):
         if not self.job_descr.get("Imports", None):
@@ -134,19 +140,21 @@ class JobDescriptionGenerator:
         remote url, so they never end up in .git/config, in the process list or in
         git error messages that echo the remote.
         """
-        clone = f"git clone {shlex.quote(remote_url)} {shlex.quote(local_path)}"
-        if not (git_hook.user_name and git_hook.auth_token and remote_url.startswith("https://")):
+        target = f"{shlex.quote(remote_url)} {shlex.quote(local_path)}"
+        git_options = ""
+        credentials = None
+        if git_hook.user_name and git_hook.auth_token and remote_url.startswith("https://"):
+            host = urlparse(remote_url).netloc
+            credentials = [f"https://{git_hook.user_name}:{git_hook.auth_token}@{host}"]
+            helper = shlex.quote(f"!git credential-store --file={self.CREDENTIAL_FILE_PATH}")
+            # the empty assignment drops inherited/global helpers before adding ours
+            git_options = f"-c credential.helper= -c credential.helper={helper} "
+        clone = f"git {git_options}clone {target}"
+        if credentials is None:
             return clone, None
-        host = urlparse(remote_url).netloc
-        credentials = [f"https://{git_hook.user_name}:{git_hook.auth_token}@{host}"]
-        helper = shlex.quote(f'!git credential-store --file="$PWD/{self.GIT_CREDENTIALS_FILE}"')
-        clone = (
-            f"git -c credential.helper= -c credential.helper={helper}"
-            f" clone {shlex.quote(remote_url)} {shlex.quote(local_path)}"
-        )
         # keep the exit code of the clone while removing the credential file directly
-        guarded = f'( {clone} ; rc=$?; rm -f "$PWD/{self.GIT_CREDENTIALS_FILE}"; exit $rc )'
-        return guarded, credentials
+        cleanup = f'rm -f {self.CREDENTIAL_FILE_PATH} "$PWD/{self.GIT_CREDENTIALS_FILE}"'
+        return f"( {clone} ; rc=$?; {cleanup}; exit $rc )", credentials
 
 
 class NaiveJobDescriptionGenerator(JobDescriptionGenerator):
@@ -167,7 +175,9 @@ class NaiveJobDescriptionGenerator(JobDescriptionGenerator):
         user_added_params: dict[str, str] = executor_config.get(JobDescriptionGenerator.EXECUTOR_CONFIG_PARAMETERS, None)  # type: ignore
         user_added_project: str = executor_config.get(JobDescriptionGenerator.EXECUTOR_CONFIG_PROJECT, None)  # type: ignore
         user_added_resources: dict[str, str] = executor_config.get(JobDescriptionGenerator.EXECUTOR_CONFIG_RESOURCES, None)  # type: ignore
-        user_added_pre_commands: list[str] = executor_config.get(JobDescriptionGenerator.EXECUTOR_CONFIG_PRE_COMMANDS, [])  # type: ignore
+        # copy: the anchor for the credential file is inserted at the front below,
+        # and the workload's own executor_config list must not be mutated
+        user_added_pre_commands: list[str] = list(executor_config.get(JobDescriptionGenerator.EXECUTOR_CONFIG_PRE_COMMANDS, []) or [])  # type: ignore
         user_defined_python_env: str = workload.ti.executor_config.get(JobDescriptionGenerator.EXECUTOR_CONFIG_PYTHON_ENV_KEY, None)  # type: ignore
         user_added_post_commands: list[str] = executor_config.get(JobDescriptionGenerator.EXECUTOR_CONFIG_POST_COMMANDS, [])  # type: ignore
         user_added_job_description: dict[str, Any] = executor_config.get(JobDescriptionGenerator.EXECUTOR_CONFIG_JOB_DESCRIPTION_PARAMS, {})  # type: ignore
@@ -277,6 +287,7 @@ class NaiveJobDescriptionGenerator(JobDescriptionGenerator):
             )
             if git_credentials:
                 self.add_import({"To": self.GIT_CREDENTIALS_FILE, "Data": git_credentials})
+                user_added_pre_commands.insert(0, self.CREDENTIAL_DIR_ANCHOR)
             git_precommand = (
                 f". {python_env} && mkdir -p {shlex.quote(git_local_url)}"
                 f" && mkdir -p {shlex.quote(dag_bundle_path)}"
@@ -470,6 +481,7 @@ class ContainerJobDescriptionGenerator(JobDescriptionGenerator):
             )
             if git_credentials:
                 self.add_import({"To": self.GIT_CREDENTIALS_FILE, "Data": git_credentials})
+                precommands.insert(0, self.CREDENTIAL_DIR_ANCHOR)
             git_precommand = (
                 f". {system_env} && mkdir -p {shlex.quote(git_local_url)}"
                 f" && mkdir -p {shlex.quote(dag_bundle_path)}"
