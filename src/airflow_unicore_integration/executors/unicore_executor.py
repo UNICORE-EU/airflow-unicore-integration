@@ -15,6 +15,7 @@ import time
 from typing import Any
 
 import pyunicore.client as uc_client
+from airflow.exceptions import AirflowConfigException
 from airflow.executors.base_executor import BaseExecutor
 from airflow.executors.workloads import All
 from airflow.executors.workloads import ExecuteTask
@@ -167,7 +168,9 @@ class UnicoreExecutor(BaseExecutor):
         )  # task can provide a credential to use, else use preconfigured site credential
 
         # list of sites
-        # each site is a lsit of strings, containing [0] site name, [1] site url, [2] auth_token
+        # each site is a list of strings:
+        # [0] site name, [1] site url, [2] unicore user preferences (accounting rules),
+        # [3] site specific precommand, [4] using_proxy
         preconfigured_sites: list[list[str]] = json.loads(
             self.conf.get("unicore.executor", "SITES_CONFIG", fallback="")
         )
@@ -185,22 +188,36 @@ class UnicoreExecutor(BaseExecutor):
             "unicore.executor", f"SITES_TOKEN_{site[0].upper()}", fallback=""
         )
 
-        user_config = dict(enumerate(site)).get(2)
+        # user preferences are independent of the auth token: they select the accounting
+        # group when the token is allowed to use several
+        user_preferences = site[2] if len(site) > 2 else None
 
         if overwrite_unicore_credential is not None:
             token = overwrite_unicore_credential
             self.log.debug("Using user provided token instead of site default.")
+        elif not token:
+            raise AirflowConfigException(
+                f"No credential configured for unicore site '{site[0]}'. Set "
+                f"[unicore.executor] SITES_TOKEN_{site[0].upper()} in airflow.cfg, or pass "
+                f"'{UnicoreExecutor.EXECUTOR_CONFIG_UNICORE_CREDENTIAL_KEY}' in the task's "
+                "executor_config."
+            )
         credential: Credential = create_credential(token=token)
         if overwrite_unicore_site is not None:
             base_url = overwrite_unicore_site
             self.log.debug("Using user provided site url instead of site default.")
         if not base_url:
-            raise TypeError()
+            raise AirflowConfigException(
+                f"No site url for unicore site '{site[0]}'. Set its url in "
+                f"[unicore.executor] SITES_CONFIG, or pass "
+                f"'{UnicoreExecutor.EXECUTOR_CONFIG_UNICORE_SITE_KEY}' in the task's "
+                "executor_config."
+            )
         self.log.debug(f"Using site url: {base_url}")
         # self.log.debug(f"Using credential: {credential}")
         conn = client.Client(credential, base_url)
-        if user_config:
-            conn.transport.preferences = user_config
+        if user_preferences:
+            conn.transport.preferences = user_preferences
         return conn
 
     def _submit_job(self, workload: ExecuteTask):
