@@ -128,16 +128,29 @@ class UnicoreExecutor(BaseExecutor):
         if not job:
             return [], []
 
-        # TODO return filecontent for stdout and stderr from jobdirectory
-        logs = job.properties["log"]  # type: ignore
-        working_dir = job.working_dir
-        stdout = working_dir.stat("/stdout")
-        stderr = working_dir.stat("/stderr")
+        logs = list(job.properties["log"])  # type: ignore
+        logs += self._read_job_log_file(job.working_dir, "stdout")
+        logs += self._read_job_log_file(job.working_dir, "stderr")
 
-        lines_out = stdout.raw().read().decode("utf-8").split("\n")  # type: ignore
-        lines_err = stderr.raw().read().decode("utf-8").split("\n")  # type: ignore
+        metalog = [
+            f"unicore job name: {job.properties.get('name', 'unknown')}",
+            f"unicore job url: {job.properties.get('url', 'unknown')}",
+        ]
+        return logs, metalog
 
-        return logs + lines_out + lines_err, ["Test", "Where is this shown??"]
+    def _read_job_log_file(self, working_dir, name: str) -> list[str]:
+        """
+        Read one output stream of a unicore job from its working directory.
+
+        A stream that is missing (or already swept away) must not break the whole log
+        view, so read failures are reported inline instead of raised.
+        """
+        try:
+            return working_dir.stat(f"/{name}").raw().read().decode("utf-8").split("\n")  # type: ignore
+        except RequestException as exc:
+            status = exc.response.status_code if exc.response is not None else "no response"  # type: ignore
+            self.log.debug("Could not read %s of the unicore job: %s", name, exc)
+            return [f"<{name} is not available (HTTP {status})>"]
 
     def _get_job_from_id(self, key: TaskInstanceKey) -> uc_client.Job | None:
         # iterate over jobs and check if key matches job name
