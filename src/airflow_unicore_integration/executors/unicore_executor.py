@@ -12,6 +12,7 @@ from __future__ import annotations
 import importlib
 import json
 import time
+from collections.abc import Sequence
 from typing import Any
 
 import pyunicore.client as uc_client
@@ -19,6 +20,7 @@ from airflow.exceptions import AirflowConfigException
 from airflow.executors.base_executor import BaseExecutor
 from airflow.executors.workloads import All
 from airflow.executors.workloads import ExecuteTask
+from airflow.executors.workloads import WorkloadType
 from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.utils.state import TaskInstanceState
 from pyunicore import client
@@ -53,6 +55,9 @@ class UnicoreExecutor(BaseExecutor):
         "airflow_unicore_integration.util.job.NaiveJobDescriptionGenerator"
     )
     supports_multi_team: bool = True
+    # Airflow 3.4.0 admits workloads per type. This executor only runs tasks, so callbacks and
+    # connection tests stay undeclared and the base class rejects them with a clear error.
+    supported_workload_types: frozenset[WorkloadType] = frozenset({WorkloadType.EXECUTE_TASK})
     # serve_logs = True
 
     def __init__(self, *args, **kwargs):
@@ -234,44 +239,62 @@ class UnicoreExecutor(BaseExecutor):
             conn.transport.preferences = user_preferences
         return conn
 
-    def _submit_job(self, workload: ExecuteTask):
+    def _submit_job(self, workload: ExecuteTask) -> uc_client.Job:
         unicore_client = self._get_unicore_client(executor_config=workload.ti.executor_config)
         job_descr = self._create_job_description(workload)
         self.log.debug("Generated job description: %s", redact_credentials(str(job_descr)))
         job = unicore_client.new_job(job_descr)
         self.log.info("Submitted unicore job")
-        self.active_jobs[workload.ti.key] = job
-        self.running_state(workload.ti.key, TaskInstanceState.QUEUED)
+        self.active_jobs[self.get_workload_key(workload)] = job
         return job
+
+    def _process_workloads(self, workload_items: Sequence[All]) -> None:
+        """
+        Submit the workloads the scheduler handed over and report them as queued.
+
+        Airflow 3.4.0 calls this from the executor heartbeat instead of letting executors submit
+        from ``queue_workload``. The base class already limited the list to the free slots, so
+        everything in it can go straight to UNICORE.
+
+        Each workload has to leave ``executor_queues`` and enter ``running`` here, and stay in
+        ``running`` until ``sync()`` reports how the job ended: the scheduler only accepts executor
+        events for tasks the executor still knows about.
+        """
+        for workload in workload_items:
+            if not isinstance(workload, ExecuteTask):
+                raise NotImplementedError(
+                    f"{type(self).__name__} cannot process {type(workload).__name__} workloads, "
+                    f"add WorkloadType.{workload.type.name} to supported_workload_types "
+                    "and handle it here."
+                )
+
+            key = self.get_workload_key(workload)
+            self.executor_queues[workload.type].pop(key, None)
+            self.running.add(key)
+
+            try:
+                job = self._submit_job(workload)
+            except AuthenticationFailedException as auth_exception:
+                self.fail(key)
+                self.log.error(
+                    "Invalid credentials for UNICORE. Failing all UNICORE tasks until this has been resolved."
+                )
+                self.log.error(auth_exception)
+            except RequestException as re:
+                # Any kind of requests error, from DNS issues, to timeout Issues, to invalid UNICORE URL issues
+                self.fail(key)
+                self.log.error(
+                    "Some Error appeared during the connection attempt to UNICORE. Failing this task Instance."
+                )
+                self.log.error(re)
+            else:
+                # the scheduler stores the reported info as the task's external_executor_id, so this
+                # is what links a task instance to the unicore job that ran it
+                self.event_buffer[key] = (TaskInstanceState.QUEUED, job.resource_url)
 
     def _create_job_description(self, workload: ExecuteTask) -> dict[str, Any]:
         job_descr_generator: JobDescriptionGenerator = self.configured_generator_class(self.conf)  # type: ignore
         return job_descr_generator.create_job_description(workload)
-
-    def queue_workload(self, workload: ExecuteTask | All, session):
-        if not isinstance(workload, ExecuteTask):
-            raise TypeError(f"Don't know how to queue workload of type {type(workload).__name__}")
-
-        # submit job to unicore and add to active_jobs dict for task state management
-        try:
-            job = self._submit_job(workload)
-        except AuthenticationFailedException as auth_exception:
-            self.fail(workload.ti.key)
-            self.log.error(
-                "Invalid credentials for UNICORE. Failing all UNICORE tasks until this has been resolved."
-            )
-            self.log.error(auth_exception)
-            return
-        except RequestException as re:
-            # Any kind of requests error, from DNS issues, to timeout Issues, to invalid UNICORE URL issues
-            self.fail(workload.ti.key)
-            self.log.error(
-                "Some Error appeared during the connection attempt to UNICORE. Failing this task Instance."
-            )
-            self.log.error(re)
-            return
-
-        self.active_jobs[workload.ti.key] = job
 
     def end(self, heartbeat_interval=10) -> None:
         # wait for current jobs to finish, dont start any new ones - but never forever
@@ -301,3 +324,8 @@ class UnicoreExecutor(BaseExecutor):
             except RequestException as re:
                 self.log.warning("Could not abort the unicore job for task %s: %s", task, re)
         self.end()
+        # the executor is going away, so do not leave bookkeeping behind that claims free slots
+        self.active_jobs.clear()
+        self.running.clear()
+        for workload_queue in self.executor_queues.values():
+            workload_queue.clear()
