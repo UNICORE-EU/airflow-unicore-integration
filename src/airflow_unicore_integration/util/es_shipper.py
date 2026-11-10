@@ -192,7 +192,16 @@ class ElasticsearchLogShipper:
             shutil.rmtree(directory, ignore_errors=True)
 
         self._shipped.add(log_id)
-        logger.info("Shipped %s bytes of task log to Elasticsearch as %s", len(text), log_id)
+        if _count_docs(io, log_id, refresh=True) == 0:
+            # upload() reports nothing when the bulk request is refused (its writer swallows the
+            # failure and returns False), so a quiet upload still has to be checked.
+            logger.warning(
+                "Uploaded %s bytes of task log as %s, but Elasticsearch holds no documents for it",
+                len(text),
+                log_id,
+            )
+        else:
+            logger.info("Shipped %s bytes of task log to Elasticsearch as %s", len(text), log_id)
 
     def _get_io(self) -> Any:
         if self._io is None:
@@ -200,19 +209,33 @@ class ElasticsearchLogShipper:
         return self._io
 
 
-def _already_shipped(io: Any, log_id: str) -> bool:
-    """Best effort check against a previous scheduler process; a failing probe never blocks."""
+def _count_docs(io: Any, log_id: str, refresh: bool = False) -> int:
+    """
+    Count the documents Elasticsearch holds for a log id, or -1 when it cannot be asked.
+
+    ``refresh`` matters right after a write: a bulk request only becomes searchable at the next
+    index refresh, so counting without it would report a successful upload as an empty one.
+    """
     query = {"match_phrase": {"log_id": log_id}}
-    for kwargs in ({"query": query}, {"body": {"query": query}}):
+    attempts: list[dict[str, Any]] = [{"query": query}]
+    if refresh:
+        attempts.insert(0, {"query": query, "refresh": True})
+    attempts.append({"body": {"query": query}})
+    for kwargs in attempts:
         try:
             response = io.client.count(index=io.target_index, **kwargs)
         except TypeError:  # client versions disagree on how the query is passed
             continue
         except Exception as exc:  # noqa: BLE001 - a probe must not decide whether logs exist
-            logger.debug("Could not look for existing logs of %s: %s", log_id, exc)
-            return False
+            logger.debug("Could not count the documents of %s: %s", log_id, exc)
+            return -1
         count = (
             response.get("count") if hasattr(response, "get") else getattr(response, "count", None)
         )
-        return bool(count)
-    return False
+        return int(count or 0)
+    return -1
+
+
+def _already_shipped(io: Any, log_id: str) -> bool:
+    """Best effort check against a previous scheduler process; a failing probe never blocks."""
+    return _count_docs(io, log_id) > 0
