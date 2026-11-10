@@ -8,6 +8,7 @@ from airflow.providers.common.compat.sdk import Context
 from airflow.sdk.bases.operator import BaseOperator
 
 from airflow_unicore_integration.hooks import unicore_hooks
+from airflow_unicore_integration.util.storage import read_storage_file
 
 logger = logging.getLogger(__name__)
 
@@ -315,11 +316,11 @@ class UnicoreGenericOperator(BaseOperator):
         for filename in content:
             if "/UNICORE_Job_" in filename:
                 task_instance.xcom_push(key="Unicore Job ID", value=filename[13:])
-                jobt_text = work_dir.stat(filename).raw().read().decode("utf-8")
+                jobt_text = read_storage_file(work_dir, filename)
                 task_instance.xcom_push(key="UNICORE Job", value=jobt_text)
                 continue
             if "bss_submit_" in filename:
-                bss_submit_text = work_dir.stat(filename).raw().read().decode("utf-8")
+                bss_submit_text = read_storage_file(work_dir, filename)
                 task_instance.xcom_push(key="BSS_SUBMIT", value=bss_submit_text)
                 continue
 
@@ -328,8 +329,7 @@ class UnicoreGenericOperator(BaseOperator):
         for file in self.xcom_output_files:
             try:
                 logger.debug(f"Retreiving file {file} from workdir.")
-                remote_file = work_dir.stat(file)
-                content = remote_file.raw().read().decode("utf-8")
+                content = read_storage_file(work_dir, file)
                 task_instance.xcom_push(key=file, value=content)
             except HTTPError:
                 logger.exception("Error while retreiving file %s from workdir.", file)

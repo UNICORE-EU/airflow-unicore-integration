@@ -31,6 +31,7 @@ from requests.exceptions import RequestException
 
 from ..util.job import JobDescriptionGenerator
 from ..util.job import redact_credentials
+from ..util.storage import read_storage_file
 
 STATE_MAPPINGS: dict[uc_client.JobStatus, TaskInstanceState] = {
     uc_client.JobStatus.UNDEFINED: TaskInstanceState.FAILED,
@@ -149,14 +150,16 @@ class UnicoreExecutor(BaseExecutor):
         Read one output stream of a unicore job from its working directory.
 
         A stream that is missing (or already swept away) must not break the whole log
-        view, so read failures are reported inline instead of raised.
+        view, so read failures are reported inline instead of raised. Any error type is
+        tolerated on purpose: pyunicore surfaces transport, http and decoding problems
+        from several libraries, and none of them may take the log view down.
         """
         try:
-            return working_dir.stat(f"/{name}").raw().read().decode("utf-8").split("\n")  # type: ignore
-        except RequestException as exc:
-            status = exc.response.status_code if exc.response is not None else "no response"  # type: ignore
+            return read_storage_file(working_dir, f"/{name}", errors="replace").split("\n")
+        except Exception as exc:  # noqa: BLE001
             self.log.debug("Could not read %s of the unicore job: %s", name, exc)
-            return [f"<{name} is not available (HTTP {status})>"]
+            reason = redact_credentials(f"{type(exc).__name__}: {exc}")[:200]
+            return [f"<{name} is not available ({reason})>"]
 
     def _get_job_from_id(self, key: TaskInstanceKey) -> uc_client.Job | None:
         # iterate over jobs and check if key matches job name
