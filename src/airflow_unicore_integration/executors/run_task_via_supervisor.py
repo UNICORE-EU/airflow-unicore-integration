@@ -15,13 +15,13 @@ import argparse
 import structlog
 from airflow.configuration import conf
 from airflow.executors import workloads
-from airflow.sdk.execution_time.supervisor import supervise
+from airflow.executors.base_executor import BaseExecutor
 from pydantic import TypeAdapter
 
 log = structlog.get_logger(logger_name=__name__)
 
 
-def execute_workload_locally(workload: workloads.All):
+def execute_workload_locally(workload: workloads.All) -> int:
     if not isinstance(workload, workloads.ExecuteTask):
         raise TypeError(f"Executor does not know how to handle {type(workload)}")
 
@@ -33,14 +33,12 @@ def execute_workload_locally(workload: workloads.All):
     log.debug(f"Workload is: {workload}")
     log.debug(f"Dag Bundle is: {workload.bundle_info}")
 
-    supervise(
-        # This is the "wrong" ti type, but it duck types the same. TODO: Create a protocol for this.
-        ti=workload.ti,  # type: ignore[arg-type]
-        dag_rel_path=workload.dag_rel_path,
-        bundle_info=workload.bundle_info,
-        token=workload.token,
+    # Pass the server explicitly: the unicore worker runs outside the Kubernetes network and
+    # must use the externally resolvable URL (taken from the job's env file), not whatever
+    # the local airflow config would resolve on its own.
+    return BaseExecutor.run_workload(
+        workload,
         server=server,
-        log_path=workload.log_path,
         # Include the output of the task to stdout too, so that in process logs can be read from via
         # unicore as job logs.
         subprocess_logs_to_stdout=True,
@@ -67,6 +65,7 @@ def main():
     args = parser.parse_args()
 
     decoder = TypeAdapter[workloads.All](workloads.All)
+    workload: workloads.All | None = None
 
     if args.json_path:
         try:
@@ -84,7 +83,11 @@ def main():
             log.error("Failed to parse input JSON string", error=str(e))
             sys.exit(1)
 
-    execute_workload_locally(workload)
+    if workload is None:  # pragma: no cover -- argparse makes one flag required
+        log.error("No workload provided")
+        sys.exit(1)
+
+    sys.exit(execute_workload_locally(workload))
 
 
 if __name__ == "__main__":
