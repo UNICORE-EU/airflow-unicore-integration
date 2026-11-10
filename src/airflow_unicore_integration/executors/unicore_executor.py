@@ -29,6 +29,11 @@ from pyunicore.credentials import Credential
 from pyunicore.credentials import create_credential
 from requests.exceptions import RequestException
 
+from ..util.es_shipper import DEFAULT_MAX_STREAM_BYTES
+from ..util.es_shipper import ElasticsearchLogShipper
+from ..util.es_shipper import LogTarget
+from ..util.es_shipper import cap_stream
+from ..util.es_shipper import shipping_enabled
 from ..util.job import JobDescriptionGenerator
 from ..util.job import redact_credentials
 from ..util.storage import read_storage_file
@@ -79,6 +84,11 @@ class UnicoreExecutor(BaseExecutor):
 
         # must exist before start() so sync/terminate/queue_workload never hit a missing attribute
         self.active_jobs: dict[TaskInstanceKey, uc_client.Job] = {}
+        # task instance uuids, needed to tag shipped logs with ti_id: Airflow 3.4 log queries
+        # prefer ti_id over the log id
+        self._ti_ids: dict[TaskInstanceKey, Any] = {}
+        # the log shipper, or False once we know shipping is switched off for this deployment
+        self._log_shipper: ElasticsearchLogShipper | bool | None = None
 
     def start(self):
         self.active_jobs: dict[TaskInstanceKey, uc_client.Job] = {}  # type: ignore
@@ -113,10 +123,12 @@ class UnicoreExecutor(BaseExecutor):
                 self.fail(task)
                 self.active_jobs.pop(task)
                 self._handle_used_compute_time(task, job)
+                self._ship_job_logs(task, job)
             elif state == TaskInstanceState.SUCCESS:
                 self.success(task)
                 self.active_jobs.pop(task)
                 self._handle_used_compute_time(task, job)
+                self._ship_job_logs(task, job)
             elif state == TaskInstanceState.QUEUED:
                 # self.running_state(task, state)
                 pass
@@ -144,6 +156,69 @@ class UnicoreExecutor(BaseExecutor):
             f"unicore job url: {job.properties.get('url', 'unknown')}",
         ]
         return logs, metalog
+
+    def _get_log_shipper(self) -> ElasticsearchLogShipper | None:
+        """The shipper for finished job logs, or None when this deployment has no Elasticsearch."""
+        if self._log_shipper is None:
+            if not shipping_enabled(self.conf):
+                self._log_shipper = False
+            else:
+                max_bytes = int(
+                    self.conf.get(
+                        "unicore.executor",
+                        "ES_LOG_MAX_BYTES",
+                        fallback=str(DEFAULT_MAX_STREAM_BYTES),
+                    )
+                )
+                self._log_shipper = ElasticsearchLogShipper(max_stream_bytes=max_bytes)
+        return self._log_shipper if isinstance(self._log_shipper, ElasticsearchLogShipper) else None
+
+    def _ship_job_logs(self, key: TaskInstanceKey, job: uc_client.Job) -> None:
+        """
+        Hand a finished job's streams to the deployment's log store.
+
+        This runs from ``sync()`` because that is the last moment the job's uspace directory
+        still exists, and the scheduler is the only process that can reach both UNICORE and an
+        Elasticsearch service inside the Kubernetes cluster.
+        """
+        shipper = self._get_log_shipper()
+        if shipper is None:
+            self._ti_ids.pop(key, None)
+            return
+
+        try:
+            job_url = redact_credentials(str(job.properties.get("url", "unknown")))  # type: ignore
+            parts = [f"*** unicore job {job_url} : stdout ***"]
+            parts.append(
+                cap_stream(
+                    "\n".join(self._read_job_log_file(job.working_dir, "stdout")),
+                    shipper.max_stream_bytes,
+                )
+            )
+            parts.append(f"*** unicore job {job_url} : stderr ***")
+            parts.append(
+                cap_stream(
+                    "\n".join(self._read_job_log_file(job.working_dir, "stderr")),
+                    shipper.max_stream_bytes,
+                )
+            )
+            text = "\n".join(parts)
+        except Exception as exc:  # noqa: BLE001 - collecting logs must never disturb task handling
+            self.log.warning(
+                "Could not collect the job logs of %s: %s", key, redact_credentials(str(exc))
+            )
+            self._ti_ids.pop(key, None)
+            return
+
+        target = LogTarget(
+            dag_id=key.dag_id,
+            task_id=key.task_id,
+            run_id=key.run_id,
+            try_number=key.try_number,
+            map_index=key.map_index,
+            ti_id=self._ti_ids.pop(key, None),
+        )
+        shipper.submit(text, target)
 
     def _read_job_log_file(self, working_dir, name: str) -> list[str]:
         """
@@ -291,6 +366,9 @@ class UnicoreExecutor(BaseExecutor):
                 )
                 self.log.error(re)
             else:
+                # remember the uuid: shipped logs are only findable by 3.4's log reader when they
+                # carry ti_id, and the key alone does not have one
+                self._ti_ids[key] = getattr(workload.ti, "id", None)
                 # the scheduler stores the reported info as the task's external_executor_id, so this
                 # is what links a task instance to the unicore job that ran it
                 self.event_buffer[key] = (TaskInstanceState.QUEUED, job.resource_url)
@@ -319,6 +397,10 @@ class UnicoreExecutor(BaseExecutor):
                 break
             time.sleep(heartbeat_interval)
 
+        # queued log uploads should reach Elasticsearch before this process goes away
+        if isinstance(self._log_shipper, ElasticsearchLogShipper):
+            self._log_shipper.flush()
+
     def terminate(self):
         # terminate all jobs
         for task, job in list(self.active_jobs.items()):
@@ -326,6 +408,7 @@ class UnicoreExecutor(BaseExecutor):
                 job.abort()
             except RequestException as re:
                 self.log.warning("Could not abort the unicore job for task %s: %s", task, re)
+            self._ti_ids.pop(task, None)
         self.end()
         # the executor is going away, so do not leave bookkeeping behind that claims free slots
         self.active_jobs.clear()
