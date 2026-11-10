@@ -114,6 +114,56 @@ class JobDescriptionGenerator:
     def get_env_file_name(self) -> str:
         return "airflow_config.env"
 
+    # LocalExecutor stays first so it remains the (unused) default executor on the worker.
+    WORKER_EXECUTOR_BASE: tuple[str, ...] = (
+        "LocalExecutor",
+        "airflow_unicore_integration.executors.unicore_executor.UnicoreExecutor",
+    )
+
+    def get_bundle_team_name(self, workload: ExecuteTask) -> str | None:
+        """Name of the team that owns the bundle of this workload's DAG, if any."""
+        try:
+            bundles = json.loads(
+                global_conf.get("dag.processor", "dag_bundle_config_list", fallback="")
+            )
+        except (ValueError, TypeError):
+            logger.warning("Could not read the dag bundle config list, assuming no team.")
+            return None
+        for bundle in bundles:
+            if bundle.get("name") == workload.bundle_info.name:
+                return bundle.get("team_name")
+        return None
+
+    def build_worker_executor_config(self, team_name: str | None) -> str:
+        """
+        Build the AIRFLOW__CORE__EXECUTOR value for a job.
+
+        The worker imports the whole DAG, and Airflow validates every ``executor=`` a task
+        names against the executor config, so a task routed to Unicore fails to load when a
+        sibling task names an executor the job does not know. Therefore mirror the scheduler
+        config here, but only its global entries plus the entries scoped to this workload's
+        team: copying the string verbatim would name every other team in a job directory that
+        any member of this team can read.
+        """
+        executors = list(self.WORKER_EXECUTOR_BASE)
+        scheduler_config = global_conf.get("core", "executor", fallback="") or ""
+        multi_team = global_conf.getboolean("core", "multi_team", fallback=False)
+        # Same grammar as Airflow's ExecutorLoader: team groups are separated by ';',
+        # prefixed with '<team>=', and hold ','-separated 'Name', 'alias:Name' or 'module.path'
+        # entries. A group without a team prefix (or one starting with '=') is global.
+        for group in scheduler_config.split(";"):
+            if "=" in group and not group.startswith("="):
+                group_team, names = group.split("=", 1)
+                if not multi_team or group_team != (team_name or ""):
+                    continue
+            else:
+                names = group.strip("=")
+            for name in names.split(","):
+                name = name.strip()
+                if name and name not in executors:
+                    executors.append(name)
+        return ",".join(executors)
+
     GIT_CREDENTIALS_FILE = "git_credentials"
     # UNICORE stages the imports into the job working directory, but the precommand
     # shell may already have cd'ed away by the time the clone runs (user precommands
@@ -237,7 +287,7 @@ class NaiveJobDescriptionGenerator(JobDescriptionGenerator):
         )
         self.add_to_env_file(
             "AIRFLOW__CORE__EXECUTOR",
-            "LocalExecutor,airflow_unicore_integration.executors.unicore_executor.UnicoreExecutor",
+            self.build_worker_executor_config(self.get_bundle_team_name(workload)),
         )
 
         # set proxy variables to be used by python requests library
@@ -426,7 +476,7 @@ class ContainerJobDescriptionGenerator(JobDescriptionGenerator):
         )
         self.add_to_env_file(
             "AIRFLOW__CORE__EXECUTOR",
-            "LocalExecutor,airflow_unicore_integration.executors.unicore_executor.UnicoreExecutor,KubernetesExecutor,CeleryExecutor",
+            self.build_worker_executor_config(self.get_bundle_team_name(workload)),
         )
 
         # set proxy variables to be used by python requests library
