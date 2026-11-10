@@ -187,7 +187,10 @@ class UnicoreExecutor(BaseExecutor):
             return
 
         try:
-            job_url = redact_credentials(str(job.properties.get("url", "unknown")))  # type: ignore
+            # properties has no "url" key on the job pyunicore hands back, resource_url is the one
+            job_url = redact_credentials(
+                str(getattr(job, "resource_url", "") or job.properties.get("url", "unknown"))  # type: ignore
+            )
             parts = [f"*** unicore job {job_url} : stdout ***"]
             parts.append(
                 cap_stream(
